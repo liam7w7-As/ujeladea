@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { Plus, ChevronRight, Calendar, Users, Trophy, Database, Brain, Trash2 } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
+import Modal from '../../components/Modal'
 
 export default function Dashboard() {
   const { usuario, logoutAdmin } = useExamen()
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [pendientes, setPendientes] = useState({}) // { sesion_id: boolean }
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [modal, setModal] = useState({ isOpen: false, titulo: '', mensaje: '', tipo: 'info', isConfirm: false, onConfirm: null })
 
   useEffect(() => {
     cargarSesiones()
@@ -58,9 +60,19 @@ export default function Dashboard() {
     }
   }
 
-  const handleEliminarSesion = async (id, nombre) => {
-    if (!window.confirm(`¿Estás SEGURO de eliminar la sesión de ${nombre}? Esto borrará también a los participantes y sus respuestas de forma permanente.`)) return
+  const handleEliminarSesion = (id, nombre) => {
+    setModal({
+      isOpen: true,
+      titulo: 'Eliminar Sesión',
+      mensaje: `¿Estás SEGURO de eliminar la sesión de ${nombre}? Esto borrará también a los participantes y sus respuestas de forma permanente.`,
+      tipo: 'error',
+      isConfirm: true,
+      onConfirm: () => ejecutarEliminarSesion(id)
+    })
+  }
 
+  const ejecutarEliminarSesion = async (id) => {
+    setModal(prev => ({ ...prev, isOpen: false }))
     try {
       setCargando(true)
       
@@ -80,7 +92,7 @@ export default function Dashboard() {
       
       setSesiones(actuales => actuales.filter(s => s.id !== id))
     } catch (err) {
-      alert('Error al eliminar la sesión: ' + err.message)
+      setModal({ isOpen: true, titulo: 'Error', mensaje: 'Error al eliminar la sesión: ' + err.message, tipo: 'error', isConfirm: false })
     } finally {
       setCargando(false)
     }
@@ -207,6 +219,17 @@ export default function Dashboard() {
         </div>
         </div>
       </div>
+
+      <Modal 
+        isOpen={modal.isOpen} 
+        onClose={() => setModal(prev => ({ ...prev, isOpen: false }))} 
+        titulo={modal.titulo} 
+        mensaje={modal.mensaje} 
+        tipo={modal.tipo}
+        isConfirm={modal.isConfirm}
+        onConfirm={modal.onConfirm}
+        textoConfirmar={modal.isConfirm ? "Sí, eliminar" : "Aceptar"}
+      />
     </div>
   )
 }

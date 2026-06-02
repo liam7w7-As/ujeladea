@@ -23,6 +23,9 @@ export default function SalaEspera() {
   const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
   const [agregandoPart, setAgregandoPart] = useState(false)
 
+  // Modal para confirmaciones
+  const [modalConfirm, setModalConfirm] = useState({ isOpen: false, titulo: '', mensaje: '', tipo: 'info', isConfirm: false, onConfirm: null })
+
   useEffect(() => {
     cargarDatos()
     
@@ -134,9 +137,19 @@ export default function SalaEspera() {
     }
   }
 
-  const handleIniciarExamen = async () => {
-    if (!window.confirm('¿Estás seguro de iniciar el examen para todos?')) return
-    
+  const handleIniciarExamen = () => {
+    setModalConfirm({
+      isOpen: true,
+      titulo: 'Iniciar Examen',
+      mensaje: '¿Estás seguro de iniciar el examen para todos los jóvenes registrados?',
+      tipo: 'info',
+      isConfirm: true,
+      onConfirm: ejecutarIniciarExamen
+    })
+  }
+
+  const ejecutarIniciarExamen = async () => {
+    setModalConfirm(prev => ({ ...prev, isOpen: false }))
     try {
       const { error } = await supabase
         .from('sesiones')
@@ -148,7 +161,7 @@ export default function SalaEspera() {
       
       if (error) throw error
     } catch (err) {
-      alert('Error al iniciar: ' + err.message)
+      setModalConfirm({ isOpen: true, titulo: 'Error', mensaje: 'Error al iniciar: ' + err.message, tipo: 'error', isConfirm: false, onConfirm: null })
     }
   }
 
@@ -167,27 +180,52 @@ export default function SalaEspera() {
       if (error) throw error
       setNuevoParticipante({ nombre: '', del_censo: false })
     } catch (err) {
-      alert('Error al agregar: ' + err.message)
+      setModalConfirm({ isOpen: true, titulo: 'Error', mensaje: 'Error al agregar: ' + err.message, tipo: 'error', isConfirm: false, onConfirm: null })
     } finally {
       setAgregandoPart(false)
     }
   }
 
-  const handleEliminarParticipante = async (pid) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este participante?')) return
+  const handleEliminarParticipante = (pid) => {
+    setModalConfirm({
+      isOpen: true,
+      titulo: 'Eliminar Participante',
+      mensaje: '¿Seguro que deseas eliminar a este participante?',
+      tipo: 'error',
+      isConfirm: true,
+      onConfirm: () => ejecutarEliminarParticipante(pid)
+    })
+  }
+
+  const ejecutarEliminarParticipante = async (pid) => {
+    setModalConfirm(prev => ({ ...prev, isOpen: false }))
     try {
       const { error } = await supabase.from('participantes').delete().eq('id', pid)
       if (error) throw error
       setParticipantes(actuales => actuales.filter(p => p.id !== pid))
     } catch (err) {
-      alert('Error al eliminar: ' + err.message)
+      setModalConfirm({ isOpen: true, titulo: 'Error', mensaje: 'Error al eliminar: ' + err.message, tipo: 'error', isConfirm: false, onConfirm: null })
     }
   }
 
-  const handleFinalizarExamen = async () => {
+  const handleFinalizarExamen = () => {
     if (sesion.estado === 'finalizado') return
-    if (tiempoRestante > 0 && !window.confirm('¿Forzar la finalización del examen?')) return
+    if (tiempoRestante > 0) {
+      setModalConfirm({
+        isOpen: true,
+        titulo: 'Forzar Finalización',
+        mensaje: '¿Estás seguro de forzar la finalización del examen? Aún queda tiempo restante.',
+        tipo: 'warning',
+        isConfirm: true,
+        onConfirm: ejecutarFinalizarExamen
+      })
+    } else {
+      ejecutarFinalizarExamen()
+    }
+  }
 
+  const ejecutarFinalizarExamen = async () => {
+    setModalConfirm(prev => ({ ...prev, isOpen: false }))
     try {
       const { error } = await supabase
         .from('sesiones')
@@ -200,7 +238,7 @@ export default function SalaEspera() {
       if (error) throw error
       navigate(`/admin/sesion/${id}/resultados`)
     } catch (err) {
-      alert('Error al finalizar: ' + err.message)
+      setModalConfirm({ isOpen: true, titulo: 'Error', mensaje: 'Error al finalizar: ' + err.message, tipo: 'error', isConfirm: false, onConfirm: null })
     }
   }
 
@@ -434,6 +472,17 @@ export default function SalaEspera() {
           </div>
         )}
       </Modal>
+
+      <Modal 
+        isOpen={modalConfirm.isOpen}
+        onClose={() => setModalConfirm(prev => ({ ...prev, isOpen: false }))}
+        titulo={modalConfirm.titulo}
+        mensaje={modalConfirm.mensaje}
+        tipo={modalConfirm.tipo}
+        isConfirm={modalConfirm.isConfirm}
+        onConfirm={modalConfirm.onConfirm}
+        textoConfirmar={modalConfirm.isConfirm ? "Sí, confirmar" : "Aceptar"}
+      />
 
       <style>{`
         @keyframes pulseAlert {
