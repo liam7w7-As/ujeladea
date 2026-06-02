@@ -79,7 +79,11 @@ export default function BancoPreguntas() {
       if (error) throw error
       setPreguntas(preguntas.filter(p => p.id !== id))
     } catch (err) {
-      setModal({ isOpen: true, titulo: 'Error', mensaje: 'Error al eliminar la pregunta. Es posible que ya esté siendo usada en una sesión.', tipo: 'error', isConfirm: false })
+      const msg = err?.code === '23503' || err?.message?.includes('foreign key') || err?.message?.includes('Conflict') 
+        ? 'No puedes eliminar esta pregunta porque ya ha sido usada en exámenes y tiene respuestas guardadas. Te recomendamos simplemente "Desactivarla" para que no aparezca en futuros exámenes.'
+        : 'Error al eliminar la pregunta: ' + err.message;
+        
+      setModal({ isOpen: true, titulo: 'No se puede eliminar', mensaje: msg, tipo: 'warning', isConfirm: false })
     }
   }
 
