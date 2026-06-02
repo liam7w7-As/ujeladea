@@ -78,7 +78,7 @@ Authorization: `Bearer ${apiKey}`,
 'Content-Type': 'application/json'
 },
 body: JSON.stringify({
-model: 'llama3-70b-8192',
+model: 'llama-3.3-70b-versatile',
 messages: [
 {
 role: 'system',
@@ -99,7 +99,9 @@ type: 'json_object'
 )
 
 if (!response.ok) {
-  throw new Error(`Error en API Groq: ${response.status}`)
+  const errorText = await response.text()
+  console.error("Groq API Error Details:", errorText)
+  throw new Error(`Error en API Groq: ${response.status} - ${errorText}`)
 }
 
 const data = await response.json()
