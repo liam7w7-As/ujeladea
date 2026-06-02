@@ -20,7 +20,7 @@ export default function CrearSesion() {
 
   // Datos de participantes
   const [participantes, setParticipantes] = useState([])
-  const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: true })
+  const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
 
   // Configuración de examen
   const [configuracion, setConfiguracion] = useState({ tiempo_limite: 45, cant_preguntas: 15 })
@@ -72,7 +72,7 @@ export default function CrearSesion() {
     if (!nuevoParticipante.nombre.trim()) return
     
     setParticipantes([...participantes, { ...nuevoParticipante, id: Date.now() }])
-    setNuevoParticipante({ nombre: '', del_censo: true })
+    setNuevoParticipante({ nombre: '', del_censo: false })
   }
 
   const handleEliminarParticipante = (id) => {

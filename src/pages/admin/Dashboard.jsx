@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExamen } from '../../context/ExamenContext'
 import { supabase } from '../../lib/supabase'
-import { Plus, ChevronRight, Calendar, Users, Trophy, Database, Brain } from 'lucide-react'
+import { Plus, ChevronRight, Calendar, Users, Trophy, Database, Brain, Trash2 } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 
@@ -53,6 +53,34 @@ export default function Dashboard() {
       }
     } catch (err) {
       setError(err.message || 'Error al cargar las sesiones')
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  const handleEliminarSesion = async (id, nombre) => {
+    if (!window.confirm(`¿Estás SEGURO de eliminar la sesión de ${nombre}? Esto borrará también a los participantes y sus respuestas de forma permanente.`)) return
+
+    try {
+      setCargando(true)
+      
+      // Borrado en cascada manual
+      await supabase.from('eventos_sesion').delete().eq('sesion_id', id)
+      
+      const { data: parts } = await supabase.from('participantes').select('id').eq('sesion_id', id)
+      if (parts && parts.length > 0) {
+        const pids = parts.map(p => p.id)
+        await supabase.from('respuestas').delete().in('participante_id', pids)
+      }
+      
+      await supabase.from('participantes').delete().eq('sesion_id', id)
+      const { error } = await supabase.from('sesiones').delete().eq('id', id)
+      
+      if (error) throw error
+      
+      setSesiones(actuales => actuales.filter(s => s.id !== id))
+    } catch (err) {
+      alert('Error al eliminar la sesión: ' + err.message)
     } finally {
       setCargando(false)
     }
@@ -163,6 +191,15 @@ export default function Dashboard() {
                       </button>
                     </>
                   )}
+                  
+                  <button 
+                    onClick={() => handleEliminarSesion(sesion.id, sesion.sociedades?.nombre)}
+                    className="btn btn-secondary"
+                    title="Eliminar sesión permanentemente"
+                    style={{ padding: '0.5rem', minWidth: 'auto', color: 'var(--color-error)', borderColor: 'rgba(192, 57, 43, 0.3)', marginLeft: 'var(--space-sm)' }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))

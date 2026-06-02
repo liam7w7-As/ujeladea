@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { QRCodeSVG } from 'qrcode.react'
-import { ArrowLeft, Play, Square, Users, Clock, CheckCircle2, Circle, AlertTriangle, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, Play, Square, Users, Clock, CheckCircle2, Circle, AlertTriangle, ShieldAlert, Plus, Trash2 } from 'lucide-react'
 import Modal from '../../components/Modal'
 
 export default function SalaEspera() {
@@ -18,6 +18,10 @@ export default function SalaEspera() {
   // Seguridad
   const [alertas, setAlertas] = useState({})
   const [modalAlerta, setModalAlerta] = useState({ isOpen: false, participante: null, detalle: [] })
+
+  // Edición rápida
+  const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
+  const [agregandoPart, setAgregandoPart] = useState(false)
 
   useEffect(() => {
     cargarDatos()
@@ -148,6 +152,38 @@ export default function SalaEspera() {
     }
   }
 
+  const handleAgregarParticipante = async (e) => {
+    e.preventDefault()
+    if (!nuevoParticipante.nombre.trim()) return
+    setAgregandoPart(true)
+    try {
+      const { error } = await supabase.from('participantes').insert([{
+        sesion_id: id,
+        nombre: nuevoParticipante.nombre,
+        del_censo: nuevoParticipante.del_censo,
+        examen_finalizado: false,
+        puntaje_total: 0
+      }])
+      if (error) throw error
+      setNuevoParticipante({ nombre: '', del_censo: false })
+    } catch (err) {
+      alert('Error al agregar: ' + err.message)
+    } finally {
+      setAgregandoPart(false)
+    }
+  }
+
+  const handleEliminarParticipante = async (pid) => {
+    if (!window.confirm('¿Seguro que deseas eliminar este participante?')) return
+    try {
+      const { error } = await supabase.from('participantes').delete().eq('id', pid)
+      if (error) throw error
+      setParticipantes(actuales => actuales.filter(p => p.id !== pid))
+    } catch (err) {
+      alert('Error al eliminar: ' + err.message)
+    }
+  }
+
   const handleFinalizarExamen = async () => {
     if (sesion.estado === 'finalizado') return
     if (tiempoRestante > 0 && !window.confirm('¿Forzar la finalización del examen?')) return
@@ -265,6 +301,26 @@ export default function SalaEspera() {
               Participantes ({participantes.length})
             </h3>
             
+            {sesion.estado === 'esperando' && (
+              <form onSubmit={handleAgregarParticipante} style={{ display: 'flex', gap: '8px', marginBottom: 'var(--space-md)' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Añadir joven..."
+                  value={nuevoParticipante.nombre}
+                  onChange={e => setNuevoParticipante({...nuevoParticipante, nombre: e.target.value})}
+                  style={{ padding: '8px', flex: 1, fontSize: '0.85rem' }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  <input type="checkbox" checked={nuevoParticipante.del_censo} onChange={e => setNuevoParticipante({...nuevoParticipante, del_censo: e.target.checked})} />
+                  Censo
+                </label>
+                <button type="submit" disabled={agregandoPart} className="btn btn-secondary" style={{ padding: '0 12px', minWidth: 'auto' }}>
+                  <Plus size={16} />
+                </button>
+              </form>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
               {participantes.map(p => {
                 let statusColor = 'var(--color-text-muted)'
@@ -306,6 +362,15 @@ export default function SalaEspera() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: statusColor, background: 'var(--color-bg-surface)', padding: '2px 8px', borderRadius: '12px' }}>
                       {statusIcon}
                       {statusText}
+                      {sesion.estado === 'esperando' && !p.registrado_at && (
+                        <button 
+                          onClick={() => handleEliminarParticipante(p.id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', marginLeft: '4px', display: 'flex' }}
+                          title="Eliminar participante"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
