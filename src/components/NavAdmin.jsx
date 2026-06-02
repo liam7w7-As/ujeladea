@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useExamen } from '../context/ExamenContext'
-import { LogOut, LayoutDashboard, Database, Trophy } from 'lucide-react'
+import { LogOut, LayoutDashboard, Database, Trophy, Building2 } from 'lucide-react'
 
 export default function NavAdmin() {
   const { usuario, logoutAdmin } = useExamen()
@@ -16,6 +16,7 @@ export default function NavAdmin() {
   const links = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Ranking', path: '/admin/ranking', icon: <Trophy size={18} /> },
+    { label: 'Sociedades', path: '/admin/sociedades', icon: <Building2 size={18} /> },
     { label: 'Banco de Preguntas', path: '/admin/preguntas', icon: <Database size={18} /> },
   ]
 

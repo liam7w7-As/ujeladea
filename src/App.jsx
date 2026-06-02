@@ -12,6 +12,7 @@ import BancoPreguntas from './pages/admin/BancoPreguntas'
 import FormPregunta from './pages/admin/FormPregunta'
 import CalificarSesion from './pages/admin/CalificarSesion'
 import Ranking from './pages/admin/Ranking'
+import GestionSociedades from './pages/admin/GestionSociedades'
 
 // Joven pages
 import Registro from './pages/joven/Registro'
@@ -99,6 +100,14 @@ export default function App() {
             element={
               <RutaProtegida>
                 <Ranking />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/admin/sociedades"
+            element={
+              <RutaProtegida>
+                <GestionSociedades />
               </RutaProtegida>
             }
           />
