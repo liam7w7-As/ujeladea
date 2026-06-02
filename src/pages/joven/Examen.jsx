@@ -283,7 +283,7 @@ export default function Examen() {
   }
 
   return (
-    <div className="page-wrapper" style={{ padding: 0, justifyContent: 'flex-start', minHeight: '100vh', background: 'var(--color-bg-deep)' }}>
+    <div className="page-wrapper" style={{ padding: 0, justifyContent: 'flex-start', minHeight: '100dvh', background: 'var(--color-bg-deep)' }}>
       <AdvertenciaOverlay isOpen={mostrarOverlay} onContinuar={handleContinuarExamen} />
       
       {/* Header Fijo */}
@@ -310,7 +310,7 @@ export default function Examen() {
       </div>
 
       {/* Contenido de la Pregunta */}
-      <div className="page-content animate-in" style={{ padding: 'var(--space-2xl) var(--space-lg)', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+      <div className="page-content animate-in" style={{ padding: 'var(--space-2xl) var(--space-lg) 120px var(--space-lg)', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
         
         <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 'var(--space-sm)' }}>
@@ -388,7 +388,7 @@ export default function Examen() {
       </div>
       
       {/* Footer Fijo con Botón Siguiente */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-bg-raised)', borderTop: '1px solid var(--color-border)', padding: 'var(--space-md) var(--space-lg)', display: 'flex', justifyContent: 'center', boxShadow: '0 -4px 16px rgba(0,0,0,0.3)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-bg-raised)', borderTop: '1px solid var(--color-border)', padding: 'var(--space-md) var(--space-lg)', display: 'flex', justifyContent: 'center', boxShadow: '0 -4px 16px rgba(0,0,0,0.3)', zIndex: 100 }}>
         <div style={{ width: '100%', maxWidth: '800px', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={handleSiguiente}
