@@ -78,7 +78,7 @@ Authorization: `Bearer ${apiKey}`,
 'Content-Type': 'application/json'
 },
 body: JSON.stringify({
-model: 'openai/gpt-oss-120b',
+model: 'llama3-70b-8192',
 messages: [
 {
 role: 'system',
