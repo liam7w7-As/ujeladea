@@ -9,7 +9,8 @@ export default function NavAdmin() {
 
   const handleLogout = async () => {
     await logoutAdmin()
-    navigate('/admin/login')
+    localStorage.removeItem('torneo_admin')
+    navigate('/admin')
   }
 
   const links = [
@@ -87,18 +88,22 @@ export default function NavAdmin() {
         </div>
       </div>
 
-      {/* User & Logout */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', display: 'none' }} className="show-desktop">
-          {usuario?.email}
-        </span>
-        <button 
-          onClick={handleLogout} 
-          className="btn btn-secondary" 
-          style={{ padding: '6px', minWidth: 'auto', background: 'transparent', border: 'none', color: 'var(--color-text-muted)' }}
-          title="Cerrar Sesión"
-        >
+      {/* User / Settings / Logout */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+        <div className="hide-mobile" style={{
+          background: 'var(--color-bg-surface)',
+          padding: '6px 12px',
+          borderRadius: 'var(--radius-xl)',
+          fontSize: '0.85rem',
+          color: 'var(--color-text-secondary)',
+          border: '1px solid var(--color-border)',
+          marginRight: '8px'
+        }}>
+          admin
+        </div>
+        <button onClick={handleLogout} className="btn" style={{ background: 'transparent', padding: '8px', color: 'var(--color-text-muted)', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }} title="Cerrar Sesión">
           <LogOut size={20} />
+          <span className="hide-mobile" style={{ fontSize: '0.85rem' }}>Salir</span>
         </button>
       </div>
 
