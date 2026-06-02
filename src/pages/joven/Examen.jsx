@@ -280,8 +280,11 @@ export default function Examen() {
   let opciones = []
   if (pregunta.tipo === 'multiple' && pregunta.opciones) {
     try {
-      opciones = typeof pregunta.opciones === 'string' ? JSON.parse(pregunta.opciones) : pregunta.opciones
-      if (!Array.isArray(opciones)) opciones = []
+      let rawOps = typeof pregunta.opciones === 'string' ? JSON.parse(pregunta.opciones) : pregunta.opciones
+      if (!Array.isArray(rawOps)) rawOps = []
+      
+      // Asegurarse de que sea un array de strings (soporte para datos antiguos)
+      opciones = rawOps.map(op => typeof op === 'object' && op !== null ? (op.texto || '') : String(op))
     } catch (e) {
       console.error("Error al leer las opciones", e)
       opciones = []
