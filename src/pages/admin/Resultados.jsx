@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, calcularPuntajeSociedad } from '../../lib/supabase'
 import { generarReportePDF } from '../../lib/pdf'
-import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3 } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 
@@ -83,9 +83,22 @@ export default function Resultados() {
     ])
 
     const isPendiente = estadisticas.pendientesIA > 0
-    const subtitle = isPendiente 
-      ? `Estado: PENDIENTE DE CALIFICAR (IA)\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
-      : `Efectividad: ${estadisticas.porcentaje}%\nPuntaje Oficial: ${estadisticas.puntajeObtenido} / ${estadisticas.puntajeMaximo}\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
+    let subtitle = ''
+    
+    if (isPendiente) {
+      subtitle = `Estado: PENDIENTE DE CALIFICAR (IA)\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
+    } else {
+      subtitle = `Efectividad: ${estadisticas.porcentaje}%`
+      if (estadisticas.penalizacionPorcentaje > 0) {
+        subtitle += ` (Bruto: ${estadisticas.porcentajeBruto}% - Penalización: ${estadisticas.penalizacionPorcentaje}%)`
+      }
+      subtitle += `\nPuntaje Oficial: ${estadisticas.puntajeObtenido} / ${estadisticas.puntajeMaximo}`
+      subtitle += `\nPromedio por Participante: ${estadisticas.promedioPorParticipante} pts`
+      subtitle += `\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
+      if (estadisticas.totalAlertas > 0) {
+        subtitle += `\nAlertas de Seguridad: ${estadisticas.totalAlertas}`
+      }
+    }
 
     generarReportePDF({
       titulo: `Resultados: ${sesion.sociedades.nombre}`,
@@ -182,10 +195,51 @@ export default function Resultados() {
                     {estadisticas.puntajeObtenido} / {estadisticas.puntajeMaximo}
                   </p>
                 </div>
+                <div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><BarChart3 size={14} /> Promedio</p>
+                  <p style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-accent)' }}>
+                    {estadisticas.promedioPorParticipante} <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>pts/joven</span>
+                  </p>
+                </div>
               </div>
 
             </div>
           </div>
+
+          {/* Tarjeta de Alertas y Penalización */}
+          {estadisticas.totalAlertas > 0 && (
+            <div className="card" style={{ marginBottom: 'var(--space-lg)', padding: 'var(--space-lg)', border: estadisticas.penalizacionPorcentaje > 0 ? '1px solid rgba(231, 76, 60, 0.3)' : '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+                  <div style={{ background: 'rgba(231, 76, 60, 0.1)', padding: '12px', borderRadius: '50%' }}>
+                    <ShieldAlert size={28} color="var(--color-error)" />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', margin: 0, marginBottom: '4px' }}>Alertas de Seguridad</h3>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                      Se registraron <strong style={{ color: 'var(--color-error)' }}>{estadisticas.totalAlertas}</strong> eventos sospechosos durante el examen
+                    </p>
+                  </div>
+                </div>
+                
+                {estadisticas.penalizacionPorcentaje > 0 ? (
+                  <div style={{ textAlign: 'center', background: 'rgba(231, 76, 60, 0.08)', padding: '12px 20px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(231, 76, 60, 0.2)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--color-error)', textTransform: 'uppercase', fontWeight: 600 }}>Penalización aplicada</div>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--color-error)' }}>-{estadisticas.penalizacionPorcentaje}%</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{estadisticas.porcentajeBruto}% → {estadisticas.porcentaje}%</div>
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(45, 138, 78, 0.08)', padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(45, 138, 78, 0.2)', fontSize: '0.85rem', color: 'var(--color-success)' }}>
+                    Sin penalización (menos de 20 alertas)
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 'var(--space-md)', padding: 'var(--space-sm)', background: 'var(--color-bg-base)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                <strong>Escala de penalización:</strong> 0-19 alertas = sin rebaja • 20-29 alertas = -5% • 30-39 alertas = -10% • 40+ alertas = -15%
+              </div>
+            </div>
+          )}
 
         {/* Lista de Participantes */}
         <h3 style={{ fontSize: '1.2rem', marginBottom: 'var(--space-md)' }}>Detalle por Participante</h3>

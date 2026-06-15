@@ -196,6 +196,27 @@ export default function CalificarSesion() {
     confirmarCalificacion(respId, puntajeNum, esCorrecta, 'manual')
   }
 
+  // Verificar cuántas respuestas ya tienen sugerencia de IA lista
+  const respuestasConSugerencia = respuestas.filter(r => evaluacionesIa[r.id] && !evaluacionesIa[r.id].cargando)
+  const todasEvaluadas = respuestasConSugerencia.length === respuestas.length && respuestas.length > 0
+  const hayAlgunaSugerencia = respuestasConSugerencia.length > 0
+
+  const [aceptandoTodas, setAceptandoTodas] = useState(false)
+  const handleAceptarTodasIA = async () => {
+    setAceptandoTodas(true)
+    // Copiar las respuestas con sugerencia para iterar de forma segura
+    const paraGuardar = respuestasConSugerencia.map(r => ({
+      id: r.id,
+      puntaje: evaluacionesIa[r.id].puntaje,
+      es_correcta: evaluacionesIa[r.id].es_correcta
+    }))
+
+    for (const item of paraGuardar) {
+      await confirmarCalificacion(item.id, item.puntaje, item.es_correcta, 'ia')
+    }
+    setAceptandoTodas(false)
+  }
+
   if (cargando) return <div className="page-wrapper"><div className="spinner" /></div>
 
   return (
@@ -223,18 +244,35 @@ export default function CalificarSesion() {
           </div>
 
           {respuestas.length > 0 && (
-            <button 
-              onClick={pedirProcesarTodas} 
-              disabled={procesandoGlobal}
-              className="btn btn-primary" 
-              style={{ padding: '0.5rem 1rem', width: 'auto', background: 'linear-gradient(135deg, #2e86c1, #1b4f72)' }}
-            >
-              {procesandoGlobal ? (
-                <><span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}/> Calificando {progreso.actual}/{progreso.total}</>
-              ) : (
-                <><Brain size={16} /> Auto-calificar todas</>
+            <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', marginBottom: 'var(--space-lg)' }}>
+              <button 
+                onClick={pedirProcesarTodas} 
+                disabled={procesandoGlobal}
+                className="btn btn-primary" 
+                style={{ padding: '0.5rem 1rem', width: 'auto', background: 'linear-gradient(135deg, #2e86c1, #1b4f72)' }}
+              >
+                {procesandoGlobal ? (
+                  <><span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}/> Calificando {progreso.actual}/{progreso.total}</>
+                ) : (
+                  <><Brain size={16} /> Auto-calificar todas</>
+                )}
+              </button>
+
+              {hayAlgunaSugerencia && (
+                <button 
+                  onClick={handleAceptarTodasIA} 
+                  disabled={aceptandoTodas}
+                  className="btn btn-primary" 
+                  style={{ padding: '0.5rem 1rem', width: 'auto', background: 'linear-gradient(135deg, #27ae60, #1e8449)' }}
+                >
+                  {aceptandoTodas ? (
+                    <><span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}/> Guardando...</>
+                  ) : (
+                    <><Check size={16} /> Aceptar todas las sugerencias ({respuestasConSugerencia.length})</>
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           )}
 
         {error && <div className="alert alert-error"><AlertCircle size={16} /><span>{error}</span></div>}

@@ -42,6 +42,7 @@ export async function calcularPuntajeSociedad(sesionId) {
     // 3. Obtener respuestas de estos participantes
     let puntajeObtenidoTotal = 0
     let pendientesIA = 0
+    const puntajesPorParticipante = {} // { participanteId: puntajeAcumulado }
 
     if (participantes.length > 0) {
       const pIds = participantes.map(p => p.id)
@@ -52,27 +53,55 @@ export async function calcularPuntajeSociedad(sesionId) {
         
       if (errResp) throw errResp
       
-      // Filtrar respuestas de participantes que no son del censo (invitados extra)
-      // porque ellos no deberían sumar al puntaje de la sociedad, solo participan por participar.
-      // O, según requerimiento: "los del_censo=false no afectan el denominador, pero rinden igual".
-      // Normalmente sus puntos SÍ suman al numerador pero el denominador es fijo al total_censo.
-      // Confirmemos requerimiento: "el denominador siempre es total_censo de la sociedad".
-      // Sumaremos todos sus puntos por defecto, si la directiva decidió que jueguen.
+      // Inicializar puntajes por participante
+      pIds.forEach(pid => { puntajesPorParticipante[pid] = 0 })
       
       respuestas.forEach(r => {
         if (r.calificado_por === 'pendiente_ia') {
           pendientesIA++
         }
-        // Asumiremos que los invitados suman puntos extras o normales a su iglesia. 
-        // Si no deben sumar, haríamos: 
-        // const p = participantes.find(x => x.id === r.participante_id); 
-        // if(p.del_censo) puntajeObtenidoTotal += r.puntaje_obtenido || 0;
-        // Pero lo más lógico es que todos los que rinden suman puntos.
-        puntajeObtenidoTotal += (r.puntaje_obtenido || 0)
+        const pts = r.puntaje_obtenido || 0
+        puntajeObtenidoTotal += pts
+        if (puntajesPorParticipante[r.participante_id] !== undefined) {
+          puntajesPorParticipante[r.participante_id] += pts
+        }
       })
     }
 
-    const porcentaje = Math.round((puntajeObtenidoTotal / puntajeMaximoTotal) * 100) || 0
+    // 4. Calcular promedio por participante
+    const cantParticipantes = participantes.length || 1
+    const promedioPorParticipante = Math.round((puntajeObtenidoTotal / cantParticipantes) * 10) / 10
+
+    // 5. Obtener total de alertas de seguridad de la sesión
+    let totalAlertas = 0
+    const { data: alertasData, error: errAlertas } = await supabase
+      .from('eventos_sesion')
+      .select('id', { count: 'exact', head: true })
+      .eq('sesion_id', sesionId)
+    
+    if (!errAlertas) {
+      totalAlertas = alertasData?.length ?? 0
+    }
+    // Usar count si está disponible
+    const { count: alertasCount } = await supabase
+      .from('eventos_sesion')
+      .select('*', { count: 'exact', head: true })
+      .eq('sesion_id', sesionId)
+    
+    totalAlertas = alertasCount || 0
+
+    // 6. Calcular penalización por alertas
+    // 0-19 alertas: sin penalización
+    // 20-29 alertas: -5%
+    // 30-39 alertas: -10%
+    // 40+ alertas: -15%
+    let penalizacionPorcentaje = 0
+    if (totalAlertas >= 40) penalizacionPorcentaje = 15
+    else if (totalAlertas >= 30) penalizacionPorcentaje = 10
+    else if (totalAlertas >= 20) penalizacionPorcentaje = 5
+
+    const porcentajeBruto = Math.round((puntajeObtenidoTotal / puntajeMaximoTotal) * 100) || 0
+    const porcentaje = Math.max(0, porcentajeBruto - penalizacionPorcentaje)
 
     return {
       sesionId,
@@ -80,11 +109,17 @@ export async function calcularPuntajeSociedad(sesionId) {
       iglesia: sesion.sociedades.iglesia,
       fecha: sesion.created_at,
       porcentaje,
+      porcentajeBruto,
       puntajeObtenido: puntajeObtenidoTotal,
       puntajeMaximo: puntajeMaximoTotal,
       rindieron: participantes.length,
       totalCenso: censoOficial,
-      pendientesIA
+      rindieronCenso: participantes.filter(p => p.del_censo).length,
+      invitados: participantes.filter(p => !p.del_censo).length,
+      pendientesIA,
+      promedioPorParticipante,
+      totalAlertas,
+      penalizacionPorcentaje
     }
 
   } catch (error) {

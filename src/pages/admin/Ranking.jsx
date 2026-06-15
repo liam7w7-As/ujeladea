@@ -4,7 +4,7 @@ import { supabase, calcularPuntajeSociedad } from '../../lib/supabase'
 import { generarReportePDF } from '../../lib/pdf'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
-import { Trophy, Download, Award, Calendar, AlertCircle } from 'lucide-react'
+import { Trophy, Download, Award, Calendar, AlertCircle, ShieldAlert } from 'lucide-react'
 
 export default function Ranking() {
   const navigate = useNavigate()
@@ -193,6 +193,12 @@ export default function Ranking() {
                             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>
                               {item.porcentaje}%
                             </div>
+                            {item.penalizacionPorcentaje > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', marginTop: '2px' }}>
+                                <ShieldAlert size={12} color="var(--color-error)" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--color-error)', fontWeight: 600 }}>-{item.penalizacionPorcentaje}%</span>
+                              </div>
+                            )}
                             <div style={{ marginTop: '4px' }}>
                               {getBadgePorcentaje(item.porcentaje)}
                             </div>
