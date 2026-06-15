@@ -288,8 +288,9 @@ export default function GestionSociedades() {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Total del Censo</label>
-              <input type="number" className="form-input" required min="1" value={form.total_censo} onChange={e => setForm({...form, total_censo: e.target.value})} placeholder="Ej: 15" />
+              <label className="form-label">Total del Censo <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</span></label>
+              <input type="number" className="form-input" min="0" value={form.total_censo} onChange={e => setForm({...form, total_censo: e.target.value})} placeholder="Ej: 15" />
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Puedes agregarlo después si aún no lo tienes.</p>
             </div>
             
             <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-xl)' }}>
