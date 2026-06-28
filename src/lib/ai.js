@@ -3,12 +3,12 @@ pregunta,
 respuestaReferencia,
 respuestaJoven
 ) {
-const apiKey = import.meta.env.VITE_GROQ_API_KEY
+const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
 
 if (!apiKey) {
 return {
 puntaje: 0,
-justificacion: 'Falta configurar VITE_GROQ_API_KEY en el archivo .env',
+justificacion: 'Falta configurar VITE_OPENROUTER_API_KEY en el archivo .env',
 es_correcta: false
 }
 }
@@ -70,38 +70,40 @@ Evalúa la respuesta.
 
 try {
 const response = await fetch(
-'https://api.groq.com/openai/v1/chat/completions',
-{
-method: 'POST',
-headers: {
-Authorization: `Bearer ${apiKey}`,
-'Content-Type': 'application/json'
-},
-body: JSON.stringify({
-model: 'llama-3.3-70b-versatile',
-messages: [
-{
-role: 'system',
-content: promptSistema
-},
-{
-role: 'user',
-content: promptUsuario
-}
-],
-temperature: 0.1,
-max_tokens: 300,
-response_format: {
-type: 'json_object'
-}
-})
-}
+  'https://openrouter.ai/api/v1/chat/completions',
+  {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://ujeladea.vercel.app',
+      'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-oss-120b:free',
+      messages: [
+        {
+          role: 'system',
+          content: promptSistema
+        },
+        {
+          role: 'user',
+          content: promptUsuario
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 300,
+      response_format: {
+        type: 'json_object'
+      }
+    })
+  }
 )
 
 if (!response.ok) {
   const errorText = await response.text()
-  console.error("Groq API Error Details:", errorText)
-  throw new Error(`Error en API Groq: ${response.status} - ${errorText}`)
+  console.error('OpenRouter API Error Details:', errorText)
+  throw new Error(`Error en API OpenRouter: ${response.status} - ${errorText}`)
 }
 
 const data = await response.json()
@@ -127,7 +129,7 @@ return {
 }
 
 } catch (error) {
-console.error('Error al calificar con Groq:', error)
+console.error('Error al calificar con OpenRouter:', error)
 
 return {
   puntaje: 0,
