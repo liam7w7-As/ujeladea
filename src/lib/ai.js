@@ -80,7 +80,7 @@ const response = await fetch(
       'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
     },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'openai/gpt-oss-20b:free',
       messages: [
         {
           role: 'system',
