@@ -80,7 +80,7 @@ const response = await fetch(
       'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
     },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-20b:free',
+      model: 'google/gemini-2.0-flash-exp:free',
       messages: [
         {
           role: 'system',
@@ -107,10 +107,10 @@ if (!response.ok) {
 }
 
 const data = await response.json()
-const content = data.choices[0]?.message?.content
+const content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : null
 
 if (!content) {
-  throw new Error('El modelo no devolvió ningún contenido (posible bloqueo de seguridad o error de API).')
+  throw new Error('El modelo no devolvió contenido válido. Respuesta cruda: ' + JSON.stringify(data))
 }
 
 // Limpiar posibles bloques de markdown que algunos modelos agregan (ej: ```json ... ```)
