@@ -39,7 +39,8 @@ export default function Login() {
             <div className="brand-icon" style={{ background: 'transparent', boxShadow: 'none' }}>
               <img src="/logo.png" alt="Torneo Bíblico Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--color-accent)', boxShadow: 'var(--shadow-glow)' }} />
             </div>
-            <h1 className="brand-title">Torneo Bíblico</h1>
+            <h1 className="brand-title">Olimpiadas Bíblicas</h1>
+            <p style={{ color: 'var(--color-accent)', fontSize: '0.95rem', marginTop: '-8px', fontWeight: 600 }}>UJELADEA 2026 — 1ra Etapa HEBREOS</p>
             <p className="brand-subtitle">UJELADEA</p>
           </div>
 

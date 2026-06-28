@@ -89,12 +89,17 @@ export const generarReporteResultados = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(15)
   doc.setTextColor(...C.white)
-  doc.text('TORNEO BÍBLICO UJELADEA', 42, 16)
+  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 42, 15)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(230, 200, 210)
-  doc.text('Reporte Oficial de Resultados', 42, 22)
+  doc.setFontSize(8)
+  doc.setTextColor(240, 210, 220)
+  doc.text('1ra Etapa — HEBREOS', 42, 21)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.setTextColor(225, 195, 210)
+  doc.text('Reporte Oficial de Resultados', 42, 27)
 
   // Fecha (derecha)
   const fechaStr = new Date().toLocaleDateString('es-ES', {
@@ -265,7 +270,7 @@ export const generarReporteResultados = async ({
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...C.gray)
-      doc.text('TORNEO BÍBLICO UJELADEA — Documento generado automáticamente', MARGIN, PH - 6)
+      doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026 — 1ra Etapa HEBREOS', MARGIN, PH - 6)
       doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
     },
   })
@@ -303,12 +308,17 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(...C.white)
-  doc.text('TORNEO BÍBLICO UJELADEA', 37, 14)
+  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 37, 13)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(230, 200, 210)
-  doc.text(titulo, 37, 21)
+  doc.setFontSize(7.5)
+  doc.setTextColor(240, 210, 220)
+  doc.text('1ra Etapa — HEBREOS', 37, 19)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.setTextColor(225, 195, 210)
+  doc.text(titulo, 37, 26)
 
   // Fecha
   const fechaStr = new Date().toLocaleDateString('es-ES', {
@@ -365,7 +375,7 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...C.gray)
-      doc.text('TORNEO BÍBLICO UJELADEA — Documento generado automáticamente', MARGIN, PH - 6)
+      doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026 — 1ra Etapa HEBREOS', MARGIN, PH - 6)
       doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
     },
   })

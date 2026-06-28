@@ -14,7 +14,7 @@ es_correcta: false
 }
 
 const promptSistema = `
-Eres un evaluador oficial del Torneo Bíblico de UJELADEA.
+Eres un evaluador oficial de las Olimpiadas Bíblicas UJELADEA 2026 — 1ra Etapa: HEBREOS.
 
 Tu tarea es calificar respuestas abiertas de participantes jóvenes utilizando como base la respuesta de referencia proporcionada por los organizadores y docentes del instituto teológico.
 
