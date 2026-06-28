@@ -80,7 +80,7 @@ Evalúa la respuesta.
           'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
         },
         body: JSON.stringify({
-          model: 'google/gemma-4-31b-it:free',
+          model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
           messages: [
             {
               role: 'system',
