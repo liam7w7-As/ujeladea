@@ -1,19 +1,19 @@
 export async function calificarRespuestaAbierta(
-pregunta,
-respuestaReferencia,
-respuestaJoven
+  pregunta,
+  respuestaReferencia,
+  respuestaJoven
 ) {
-const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
 
-if (!apiKey) {
-return {
-puntaje: 0,
-justificacion: 'Falta configurar VITE_OPENROUTER_API_KEY en el archivo .env',
-es_correcta: false
-}
-}
+  if (!apiKey) {
+    return {
+      puntaje: 0,
+      justificacion: 'Falta configurar VITE_OPENROUTER_API_KEY en el archivo .env',
+      es_correcta: false
+    }
+  }
 
-const promptSistema = `
+  const promptSistema = `
 Eres un evaluador oficial de las Olimpiadas Bíblicas UJELADEA 2026 — 1ra Etapa: HEBREOS.
 
 Tu tarea es calificar respuestas abiertas de participantes jóvenes utilizando como base la respuesta de referencia proporcionada por los organizadores y docentes del instituto teológico.
@@ -55,7 +55,7 @@ Responde EXCLUSIVAMENTE con JSON válido.
 }
 `
 
-const promptUsuario = `
+  const promptUsuario = `
 PREGUNTA:
 ${pregunta.texto}
 
@@ -68,87 +68,87 @@ ${respuestaJoven}
 Evalúa la respuesta.
 `
 
-try {
-const response = await fetch(
-  'https://openrouter.ai/api/v1/chat/completions',
-  {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://ujeladea.vercel.app',
-      'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-exp:free',
-      messages: [
-        {
-          role: 'system',
-          content: promptSistema
+  try {
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://ujeladea.vercel.app',
+          'X-Title': 'Olimpiadas Bíblicas UJELADEA 2026'
         },
-        {
-          role: 'user',
-          content: promptUsuario
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 300,
-      response_format: {
-        type: 'json_object'
+        body: JSON.stringify({
+          model: 'google/gemma-4-31b-it:free',
+          messages: [
+            {
+              role: 'system',
+              content: promptSistema
+            },
+            {
+              role: 'user',
+              content: promptUsuario
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 300,
+          response_format: {
+            type: 'json_object'
+          }
+        })
       }
-    })
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('OpenRouter API Error Details:', errorText)
+      throw new Error(`Error en API OpenRouter: ${response.status} - ${errorText}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : null
+
+    if (!content) {
+      throw new Error('El modelo no devolvió contenido válido. Respuesta cruda: ' + JSON.stringify(data))
+    }
+
+    // Limpiar posibles bloques de markdown que algunos modelos agregan (ej: ```json ... ```)
+    const cleanContent = content.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+    const resultado = JSON.parse(cleanContent)
+
+    if (!resultado || typeof resultado !== 'object') {
+      throw new Error('El modelo no devolvió un objeto JSON válido.')
+    }
+
+    const puntaje = Math.max(
+      0,
+      Math.min(
+        pregunta.puntaje,
+        Number(resultado.puntaje) || 0
+      )
+    )
+
+    return {
+      puntaje,
+      justificacion:
+        resultado.justificacion ||
+        'Sin justificación proporcionada.',
+      es_correcta:
+        puntaje >= pregunta.puntaje * 0.7
+    }
+
+  } catch (error) {
+    console.error('Error al calificar con OpenRouter:', error)
+
+    return {
+      puntaje: 0,
+      justificacion:
+        'Error al procesar la evaluación automática: ' +
+        error.message,
+      es_correcta: false
+    }
+
   }
-)
-
-if (!response.ok) {
-  const errorText = await response.text()
-  console.error('OpenRouter API Error Details:', errorText)
-  throw new Error(`Error en API OpenRouter: ${response.status} - ${errorText}`)
-}
-
-const data = await response.json()
-const content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : null
-
-if (!content) {
-  throw new Error('El modelo no devolvió contenido válido. Respuesta cruda: ' + JSON.stringify(data))
-}
-
-// Limpiar posibles bloques de markdown que algunos modelos agregan (ej: ```json ... ```)
-const cleanContent = content.replace(/```json/gi, '').replace(/```/g, '').trim()
-
-const resultado = JSON.parse(cleanContent)
-
-if (!resultado || typeof resultado !== 'object') {
-  throw new Error('El modelo no devolvió un objeto JSON válido.')
-}
-
-const puntaje = Math.max(
-  0,
-  Math.min(
-    pregunta.puntaje,
-    Number(resultado.puntaje) || 0
-  )
-)
-
-return {
-  puntaje,
-  justificacion:
-    resultado.justificacion ||
-    'Sin justificación proporcionada.',
-  es_correcta:
-    puntaje >= pregunta.puntaje * 0.7
-}
-
-} catch (error) {
-console.error('Error al calificar con OpenRouter:', error)
-
-return {
-  puntaje: 0,
-  justificacion:
-    'Error al procesar la evaluación automática: ' +
-    error.message,
-  es_correcta: false
-}
-
-}
 }
