@@ -26,69 +26,53 @@ export async function calcularPuntajeSociedad(sesionId) {
     // 2. Obtener los participantes de esta sesión
     const { data: participantes, error: errPart } = await supabase
       .from('participantes')
-      .select('id, del_censo')
+      .select('id, del_censo, puntaje_total')
       .eq('sesion_id', sesionId)
       
     if (errPart) throw errPart
     
-    const censoOficial = sesion.sociedades.total_censo || 1
-    const maxPuntajePregunta = 10 // O el valor estándar (generalmente 10)
-    const cantidadPreguntas = sesion.cantidad_preguntas || 15
-    const maxPuntajePorParticipante = maxPuntajePregunta * cantidadPreguntas
-    
-    // El máximo posible de toda la sociedad se basa en TODO SU CENSO, no solo en los que asistieron
-    const puntajeMaximoTotal = censoOficial * maxPuntajePorParticipante
+    const censoOficial = sesion.sociedades.total_censo || null
+    const cantParticipantes = participantes.length
 
-    // 3. Obtener respuestas de estos participantes
+    // 3. Obtener todas las respuestas con el puntaje real de cada pregunta
+    //    Esto nos da el puntaje máximo REAL (basado en las preguntas que les tocaron)
+    //    y el puntaje obtenido REAL.
     let puntajeObtenidoTotal = 0
+    let puntajeMaximoTotal = 0
     let pendientesIA = 0
-    const puntajesPorParticipante = {} // { participanteId: puntajeAcumulado }
 
-    if (participantes.length > 0) {
+    if (cantParticipantes > 0) {
       const pIds = participantes.map(p => p.id)
+
       const { data: respuestas, error: errResp } = await supabase
         .from('respuestas')
-        .select('puntaje_obtenido, calificado_por, participante_id')
+        .select('puntaje_obtenido, calificado_por, participante_id, preguntas(puntaje)')
         .in('participante_id', pIds)
         
       if (errResp) throw errResp
-      
-      // Inicializar puntajes por participante
-      pIds.forEach(pid => { puntajesPorParticipante[pid] = 0 })
       
       respuestas.forEach(r => {
         if (r.calificado_por === 'pendiente_ia') {
           pendientesIA++
         }
-        const pts = r.puntaje_obtenido || 0
-        puntajeObtenidoTotal += pts
-        if (puntajesPorParticipante[r.participante_id] !== undefined) {
-          puntajesPorParticipante[r.participante_id] += pts
-        }
+        // Sumar puntaje obtenido real
+        puntajeObtenidoTotal += (r.puntaje_obtenido || 0)
+        // Sumar puntaje máximo real (lo que valía esa pregunta)
+        puntajeMaximoTotal += (r.preguntas?.puntaje || 0)
       })
     }
 
-    // 4. Calcular promedio por participante
-    const cantParticipantes = participantes.length || 1
-    const promedioPorParticipante = Math.round((puntajeObtenidoTotal / cantParticipantes) * 10) / 10
+    // 4. Promedio de puntaje individual: promedio de puntaje_total de cada participante
+    //    (campo que ya tiene el puntaje final acumulado de cada joven)
+    const promedioPorParticipante = cantParticipantes > 0
+      ? Math.round((participantes.reduce((sum, p) => sum + (p.puntaje_total || 0), 0) / cantParticipantes) * 10) / 10
+      : 0
 
     // 5. Obtener total de alertas de seguridad de la sesión
-    let totalAlertas = 0
-    const { data: alertasData, error: errAlertas } = await supabase
-      .from('eventos_sesion')
-      .select('id', { count: 'exact', head: true })
-      .eq('sesion_id', sesionId)
-    
-    if (!errAlertas) {
-      totalAlertas = alertasData?.length ?? 0
-    }
-    // Usar count si está disponible
-    const { count: alertasCount } = await supabase
+    const { count: totalAlertas } = await supabase
       .from('eventos_sesion')
       .select('*', { count: 'exact', head: true })
       .eq('sesion_id', sesionId)
-    
-    totalAlertas = alertasCount || 0
 
     // 6. Calcular penalización por alertas
     // 0-19 alertas: sin penalización
@@ -96,11 +80,15 @@ export async function calcularPuntajeSociedad(sesionId) {
     // 30-39 alertas: -10%
     // 40+ alertas: -15%
     let penalizacionPorcentaje = 0
-    if (totalAlertas >= 40) penalizacionPorcentaje = 15
-    else if (totalAlertas >= 30) penalizacionPorcentaje = 10
-    else if (totalAlertas >= 20) penalizacionPorcentaje = 5
+    const alertasTotal = totalAlertas || 0
+    if (alertasTotal >= 40) penalizacionPorcentaje = 15
+    else if (alertasTotal >= 30) penalizacionPorcentaje = 10
+    else if (alertasTotal >= 20) penalizacionPorcentaje = 5
 
-    const porcentajeBruto = Math.round((puntajeObtenidoTotal / puntajeMaximoTotal) * 100) || 0
+    // 7. Porcentaje basado en participantes reales (no en el censo)
+    const porcentajeBruto = puntajeMaximoTotal > 0
+      ? Math.round((puntajeObtenidoTotal / puntajeMaximoTotal) * 100)
+      : 0
     const porcentaje = Math.max(0, porcentajeBruto - penalizacionPorcentaje)
 
     return {
@@ -112,13 +100,13 @@ export async function calcularPuntajeSociedad(sesionId) {
       porcentajeBruto,
       puntajeObtenido: puntajeObtenidoTotal,
       puntajeMaximo: puntajeMaximoTotal,
-      rindieron: participantes.length,
-      totalCenso: censoOficial,
+      rindieron: cantParticipantes,
+      totalCenso: censoOficial,                                           // solo informativo
       rindieronCenso: participantes.filter(p => p.del_censo).length,
       invitados: participantes.filter(p => !p.del_censo).length,
       pendientesIA,
       promedioPorParticipante,
-      totalAlertas,
+      totalAlertas: alertasTotal,
       penalizacionPorcentaje
     }
 
@@ -127,3 +115,4 @@ export async function calcularPuntajeSociedad(sesionId) {
     return null
   }
 }
+

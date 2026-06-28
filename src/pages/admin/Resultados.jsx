@@ -181,18 +181,20 @@ export default function Resultados() {
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--space-xl)', flexWrap: 'wrap' }}>
+                {estadisticas.totalCenso && (
+                  <div>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Censo Oficial</p>
+                    <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>{estadisticas.totalCenso} jóvenes</p>
+                  </div>
+                )}
                 <div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Censo Oficial</p>
-                  <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>{estadisticas.totalCenso} jóvenes</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Rindieron Examen</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Participaron</p>
                   <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>{estadisticas.rindieron} jóvenes</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Puntaje Acumulado</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Puntaje Real</p>
                   <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>
-                    {estadisticas.puntajeObtenido} / {estadisticas.puntajeMaximo}
+                    {estadisticas.puntajeObtenido} / {estadisticas.puntajeMaximo} pts
                   </p>
                 </div>
                 <div>
