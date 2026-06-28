@@ -107,9 +107,20 @@ if (!response.ok) {
 }
 
 const data = await response.json()
-const content = data.choices[0].message.content
+const content = data.choices[0]?.message?.content
 
-const resultado = JSON.parse(content)
+if (!content) {
+  throw new Error('El modelo no devolvió ningún contenido (posible bloqueo de seguridad o error de API).')
+}
+
+// Limpiar posibles bloques de markdown que algunos modelos agregan (ej: ```json ... ```)
+const cleanContent = content.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+const resultado = JSON.parse(cleanContent)
+
+if (!resultado || typeof resultado !== 'object') {
+  throw new Error('El modelo no devolvió un objeto JSON válido.')
+}
 
 const puntaje = Math.max(
   0,
