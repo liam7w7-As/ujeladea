@@ -27,7 +27,8 @@ export default function Dashboard() {
         .from('sesiones')
         .select(`
           *,
-          sociedades ( nombre, total_censo )
+          sociedades ( nombre, total_censo ),
+          participantes ( id )
         `)
         .order('created_at', { ascending: false })
 
@@ -165,7 +166,7 @@ export default function Dashboard() {
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Users size={14} />
-                      Censo: {sesion.sociedades?.total_censo}
+                      {sesion.participantes?.length ?? 0} participantes
                     </span>
                   </div>
                 </div>

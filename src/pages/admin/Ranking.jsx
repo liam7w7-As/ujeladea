@@ -32,8 +32,8 @@ export default function Ranking() {
       
       const resultadosValidos = resultados.filter(r => r !== null)
       
-      // Ordenar por porcentaje de mayor a menor
-      resultadosValidos.sort((a, b) => b.porcentaje - a.porcentaje)
+      // Ordenar por promedio de puntaje de mayor a menor
+      resultadosValidos.sort((a, b) => b.promedioPorParticipante - a.promedioPorParticipante)
       
       setRanking(resultadosValidos)
     } catch (err) {
@@ -172,16 +172,19 @@ export default function Ranking() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xl)', flexWrap: 'wrap' }}>
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Jóvenes</div>
-                          <div style={{ fontWeight: 600 }}>{item.rindieron} / {item.totalCenso}</div>
+                          <div style={{ fontWeight: 600 }}>
+                            {item.rindieron}
+                            {item.totalCenso ? <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}> / {item.totalCenso}</span> : ''}
+                          </div>
                         </div>
 
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Puntos</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Puntaje</div>
                           <div style={{ fontWeight: 600 }}>{item.puntajeObtenido} / {item.puntajeMaximo}</div>
                         </div>
 
                         {isPendiente ? (
-                          <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                          <div style={{ textAlign: 'right', minWidth: '130px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-warning)', justifyContent: 'flex-end', marginBottom: '4px' }}>
                               <AlertCircle size={14} />
                               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Sin calificar</span>
@@ -189,17 +192,22 @@ export default function Ranking() {
                             <EstadoBadge estado="pendiente_ia" size="sm" />
                           </div>
                         ) : (
-                          <div style={{ textAlign: 'right', minWidth: '120px' }}>
-                            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>
-                              {item.porcentaje}%
+                          <div style={{ textAlign: 'right', minWidth: '130px' }}>
+                            {/* Promedio como valor principal */}
+                            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Promedio</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>
+                              {item.promedioPorParticipante}
+                              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 400 }}> pts</span>
                             </div>
-                            {item.penalizacionPorcentaje > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', marginTop: '2px' }}>
-                                <ShieldAlert size={12} color="var(--color-error)" />
-                                <span style={{ fontSize: '0.7rem', color: 'var(--color-error)', fontWeight: 600 }}>-{item.penalizacionPorcentaje}%</span>
-                              </div>
-                            )}
-                            <div style={{ marginTop: '4px' }}>
+                            {/* Porcentaje como dato secundario */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', marginTop: '3px' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{item.porcentaje}%</span>
+                              {item.penalizacionPorcentaje > 0 && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: 'var(--color-error)', fontWeight: 600 }}>
+                                  <ShieldAlert size={10} />
+                                  -{item.penalizacionPorcentaje}%
+                                </span>
+                              )}
                               {getBadgePorcentaje(item.porcentaje)}
                             </div>
                           </div>
