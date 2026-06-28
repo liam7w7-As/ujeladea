@@ -113,9 +113,14 @@ Evalúa la respuesta.
       throw new Error('El modelo no devolvió contenido válido. Respuesta cruda: ' + JSON.stringify(data))
     }
 
-    // Limpiar posibles bloques de markdown que algunos modelos agregan (ej: ```json ... ```)
-    const cleanContent = content.replace(/```json/gi, '').replace(/```/g, '').trim()
+    // Buscar explícitamente el bloque JSON dentro de la respuesta por si el modelo habla antes o después
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    
+    if (!jsonMatch) {
+      throw new Error('El modelo no devolvió un objeto JSON válido en su respuesta. Respuesta cruda: ' + content)
+    }
 
+    const cleanContent = jsonMatch[0]
     const resultado = JSON.parse(cleanContent)
 
     if (!resultado || typeof resultado !== 'object') {
