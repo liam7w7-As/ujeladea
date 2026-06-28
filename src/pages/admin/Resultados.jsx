@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, calcularPuntajeSociedad } from '../../lib/supabase'
-import { generarReportePDF } from '../../lib/pdf'
+import { generarReporteResultados } from '../../lib/pdf'
 import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3 } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
@@ -74,38 +74,15 @@ export default function Resultados() {
   const exportarPDF = () => {
     if (!sesion || !estadisticas) return
 
-    const columnas = ['Joven', 'Del Censo', 'Pendientes', 'Puntaje Total']
-    const filas = participantes.map(p => [
-      p.nombre,
-      p.del_censo ? 'Sí' : 'No',
-      p.pendientes > 0 ? `${p.pendientes} pend.` : '-',
-      `${p.puntaje_total} pts`
-    ])
-
-    const isPendiente = estadisticas.pendientesIA > 0
-    let subtitle = ''
-    
-    if (isPendiente) {
-      subtitle = `Estado: PENDIENTE DE CALIFICAR (IA)\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
-    } else {
-      subtitle = `Efectividad: ${estadisticas.porcentaje}%`
-      if (estadisticas.penalizacionPorcentaje > 0) {
-        subtitle += ` (Bruto: ${estadisticas.porcentajeBruto}% - Penalización: ${estadisticas.penalizacionPorcentaje}%)`
-      }
-      subtitle += `\nPuntaje Oficial: ${estadisticas.puntajeObtenido} / ${estadisticas.puntajeMaximo}`
-      subtitle += `\nPromedio por Participante: ${estadisticas.promedioPorParticipante} pts`
-      subtitle += `\nCenso: ${estadisticas.rindieronCenso}/${estadisticas.totalCenso} | Invitados: ${estadisticas.invitados}`
-      if (estadisticas.totalAlertas > 0) {
-        subtitle += `\nAlertas de Seguridad: ${estadisticas.totalAlertas}`
-      }
-    }
-
-    generarReportePDF({
-      titulo: `Resultados: ${sesion.sociedades.nombre}`,
-      subtitulo: subtitle,
-      columnas,
-      filas,
-      nombreArchivo: `Resultados_${sesion.sociedades.nombre.replace(/\s+/g, '_')}.pdf`
+    generarReporteResultados({
+      sesion: {
+        sociedad: sesion.sociedades?.nombre,
+        iglesia: sesion.sociedades?.iglesia || '',
+        fecha: sesion.created_at,
+      },
+      estadisticas,
+      participantes,
+      nombreArchivo: `Resultados_${sesion.sociedades?.nombre?.replace(/\s+/g, '_')}.pdf`
     })
   }
 
