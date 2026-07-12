@@ -70,7 +70,7 @@ export default function Espera() {
 
       // Si ya está activo, procesar examen
       if (dataSesion.estado === 'activo') {
-        prepararExamenYRedirigir(dataPart.seed, dataSesion.cantidad_preguntas || 15)
+        prepararExamenYRedirigir(dataPart.seed, dataSesion.cantidad_preguntas || 45)
         return
       }
 
@@ -104,7 +104,7 @@ export default function Espera() {
           { event: 'UPDATE', schema: 'public', table: 'sesiones', filter: `id=eq.${sesionId}` },
           (payload) => {
             if (payload.new.estado === 'activo') {
-              prepararExamenYRedirigir(dataPart.seed, payload.new.cantidad_preguntas || 15)
+              prepararExamenYRedirigir(dataPart.seed, payload.new.cantidad_preguntas || 45)
             } else if (payload.new.estado === 'finalizado') {
               navigate(`/examen/${sesionId}/finalizado`)
             }

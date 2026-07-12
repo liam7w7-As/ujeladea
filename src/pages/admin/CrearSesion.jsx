@@ -23,7 +23,7 @@ export default function CrearSesion() {
   const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
 
   // Configuración de examen
-  const [configuracion, setConfiguracion] = useState({ tiempo_limite: 45, cant_preguntas: 15 })
+  const [configuracion, setConfiguracion] = useState({ tiempo_limite: 60, cant_preguntas: 45 })
 
   useEffect(() => {
     cargarSociedades()
@@ -346,6 +346,12 @@ export default function CrearSesion() {
                   <option value="10">10 preguntas</option>
                   <option value="15">15 preguntas</option>
                   <option value="20">20 preguntas</option>
+                  <option value="25">25 preguntas</option>
+                  <option value="30">30 preguntas</option>
+                  <option value="35">35 preguntas</option>
+                  <option value="40">40 preguntas</option>
+                  <option value="45">45 preguntas</option>
+                  <option value="50">50 preguntas</option>
                 </select>
                 <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                   Cada joven recibirá esta cantidad de preguntas seleccionadas aleatoriamente del banco general.
