@@ -49,7 +49,7 @@ export default function CrearSesion() {
         .insert([{
           nombre: nuevaSociedad.nombre,
           iglesia: nuevaSociedad.iglesia,
-          total_censo: parseInt(nuevaSociedad.total_censo)
+          total_censo: nuevaSociedad.total_censo ? parseInt(nuevaSociedad.total_censo) : null
         }])
         .select()
         .single()
@@ -228,8 +228,9 @@ export default function CrearSesion() {
                     <input required type="text" className="form-input" value={nuevaSociedad.iglesia} onChange={e => setNuevaSociedad({...nuevaSociedad, iglesia: e.target.value})} placeholder="Ej: INELA Central" />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Total del Censo (Jóvenes oficiales)</label>
-                    <input required type="number" min="1" className="form-input" value={nuevaSociedad.total_censo} onChange={e => setNuevaSociedad({...nuevaSociedad, total_censo: e.target.value})} />
+                    <label className="form-label">Total del Censo <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</span></label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" className="form-input" value={nuevaSociedad.total_censo} onChange={e => setNuevaSociedad({...nuevaSociedad, total_censo: e.target.value.replace(/[^0-9]/g, '')})} placeholder="Ej: 15" />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Solo informativo. Puedes dejarlo vacío.</p>
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
                     <button type="button" onClick={() => setMostrandoFormNueva(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
@@ -252,7 +253,9 @@ export default function CrearSesion() {
                 </h2>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{sociedadSeleccionada?.nombre}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)' }}>Censo oficial: {sociedadSeleccionada?.total_censo}</div>
+                  {sociedadSeleccionada?.total_censo ? (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)' }}>Censo oficial: {sociedadSeleccionada.total_censo}</div>
+                  ) : null}
                 </div>
               </div>
 
