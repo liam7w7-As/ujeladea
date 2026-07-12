@@ -44,6 +44,22 @@ export default function SalaEspera() {
           )
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'participantes',
+          filter: `sesion_id=eq.${id}`
+        },
+        (payload) => {
+          setParticipantes(actuales => {
+            // Evitar duplicados
+            if (actuales.find(p => p.id === payload.new.id)) return actuales
+            return [...actuales, payload.new]
+          })
+        }
+      )
       .subscribe()
 
     const sid = `sesion_${id}_${Math.random().toString(36).substring(7)}`
@@ -65,16 +81,26 @@ export default function SalaEspera() {
     }
     cargarAlertas()
 
-    // Suscripción a eventos de seguridad
+    // Debounce: recargar alertas máximo 1 vez cada 5 segundos
+    let alertaTimer = null
+    const recargarAlertasDebounced = () => {
+      if (alertaTimer) clearTimeout(alertaTimer)
+      alertaTimer = setTimeout(() => {
+        cargarAlertas()
+      }, 5000)
+    }
+
+    // Suscripción a eventos de seguridad (con debounce)
     const eid = `eventos_${id}_${Math.random().toString(36).substring(7)}`
     const canalEventos = supabase.channel(eid)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'eventos_sesion', filter: `sesion_id=eq.${id}` },
-        () => cargarAlertas()
+        () => recargarAlertasDebounced()
       ).subscribe()
 
     return () => {
+      if (alertaTimer) clearTimeout(alertaTimer)
       supabase.removeChannel(canalParticipantes)
       supabase.removeChannel(canalSesion)
       supabase.removeChannel(canalEventos)

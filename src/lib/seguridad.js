@@ -13,6 +13,11 @@ export class SeguridadExamen {
     
     this.activo = false;
     this.advertenciasLocales = 0;
+
+    // Throttle: no enviar el mismo tipo de evento más de 1 vez cada 5 segundos
+    this._ultimoEventoPorTipo = {};
+    this._colaEventos = [];
+    this._flushTimer = null;
   }
 
   async iniciar() {
@@ -46,31 +51,64 @@ export class SeguridadExamen {
     document.removeEventListener('contextmenu', this.handleContextMenu);
     document.removeEventListener('keydown', this.handleKeyDown);
     
+    // Flush cualquier evento pendiente antes de destruir
+    this._flushEventos();
+    if (this._flushTimer) clearTimeout(this._flushTimer);
+
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
     }
   }
 
-  async registrarEvento(tipo, notificarUI = false) {
+  // Throttle: máximo 1 evento del mismo tipo cada 5 segundos
+  _puedeEnviar(tipo) {
+    const ahora = Date.now();
+    const ultimo = this._ultimoEventoPorTipo[tipo] || 0;
+    if (ahora - ultimo < 5000) return false;
+    this._ultimoEventoPorTipo[tipo] = ahora;
+    return true;
+  }
+
+  // Batch: acumular eventos y enviarlos cada 3 segundos en lote
+  _encolarEvento(tipo) {
+    this._colaEventos.push({
+      participante_id: this.participanteId,
+      sesion_id: this.sesionId,
+      tipo: tipo
+    });
+
+    if (!this._flushTimer) {
+      this._flushTimer = setTimeout(() => this._flushEventos(), 3000);
+    }
+  }
+
+  async _flushEventos() {
+    this._flushTimer = null;
+    if (this._colaEventos.length === 0) return;
+
+    const lote = [...this._colaEventos];
+    this._colaEventos = [];
+
     try {
       const { error } = await this.supabase
         .from('eventos_sesion')
-        .insert([{
-          participante_id: this.participanteId,
-          sesion_id: this.sesionId,
-          tipo: tipo
-        }]);
-
-      if (error) console.error("Error registrando evento:", error);
-      
-      if (notificarUI) {
-        this.advertenciasLocales += 1;
-        if (this.onAdvertencia) {
-          this.onAdvertencia(tipo, this.advertenciasLocales);
-        }
-      }
+        .insert(lote);
+      if (error) console.error("Error registrando lote de eventos:", error);
     } catch (e) {
-      console.error("Excepción registrando evento", e);
+      console.error("Excepción registrando lote de eventos", e);
+    }
+  }
+
+  registrarEvento(tipo, notificarUI = false) {
+    if (!this._puedeEnviar(tipo)) return;
+
+    this._encolarEvento(tipo);
+    
+    if (notificarUI) {
+      this.advertenciasLocales += 1;
+      if (this.onAdvertencia) {
+        this.onAdvertencia(tipo, this.advertenciasLocales);
+      }
     }
   }
 
