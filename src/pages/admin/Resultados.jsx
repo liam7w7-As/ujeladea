@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, calcularPuntajeSociedad } from '../../lib/supabase'
+import { calcularPuntajeAutomatico } from '../../lib/examen'
 import { generarReporteResultados, generarReporteIndividual } from '../../lib/pdf'
-import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3, FileText, Info } from 'lucide-react'
+import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3, FileText, Info, RefreshCw } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 
@@ -16,6 +17,7 @@ export default function Resultados() {
   const [error, setError] = useState('')
   const [estadisticas, setEstadisticas] = useState(null)
   const [generandoPdfId, setGenerandoPdfId] = useState(null)
+  const [recalculando, setRecalculando] = useState(false)
 
   useEffect(() => {
     cargarResultados()
@@ -108,6 +110,94 @@ export default function Resultados() {
     })
   }
 
+  const handleRecalcularMultiple = async () => {
+    try {
+      setRecalculando(true)
+      
+      // 1. Participantes de esta sesión
+      const { data: parts, error: errParts } = await supabase
+        .from('participantes')
+        .select('id')
+        .eq('sesion_id', id)
+      
+      if (errParts) throw errParts
+      if (!parts || parts.length === 0) {
+        alert('No hay participantes en esta sesión.')
+        return
+      }
+
+      const partIds = parts.map(p => p.id)
+
+      // 2. Obtener todas las respuestas de múltiple opción para estos participantes
+      const { data: resps, error: errResps } = await supabase
+        .from('respuestas')
+        .select(`
+          id,
+          respuesta_dada,
+          puntaje_obtenido,
+          es_correcta,
+          participante_id,
+          preguntas!inner (
+            id,
+            texto,
+            respuesta_correcta,
+            puntaje,
+            tipo,
+            opciones
+          )
+        `)
+        .in('participante_id', partIds)
+        .eq('preguntas.tipo', 'multiple')
+
+      if (errResps) throw errResps
+
+      let corregidas = 0
+
+      // 3. Evaluar cada respuesta con la lógica mejorada
+      for (const r of (resps || [])) {
+        const evaluacion = calcularPuntajeAutomatico(r.preguntas, r.respuesta_dada)
+        
+        // Si el puntaje o estado cambió, actualizar en DB
+        if (r.puntaje_obtenido !== evaluacion.puntaje_obtenido || r.es_correcta !== evaluacion.es_correcta) {
+          const { error: errUpd } = await supabase
+            .from('respuestas')
+            .update({
+              puntaje_obtenido: evaluacion.puntaje_obtenido,
+              es_correcta: evaluacion.es_correcta,
+              calificado_por: 'sistema'
+            })
+            .eq('id', r.id)
+
+          if (!errUpd) corregidas++
+        }
+      }
+
+      // 4. Recalcular el puntaje_total de cada participante sumando todas sus respuestas
+      for (const pId of partIds) {
+        const { data: todasResp, error: errSum } = await supabase
+          .from('respuestas')
+          .select('puntaje_obtenido')
+          .eq('participante_id', pId)
+
+        if (!errSum && todasResp) {
+          const sumaTotal = todasResp.reduce((acc, curr) => acc + (curr.puntaje_obtenido || 0), 0)
+          await supabase
+            .from('participantes')
+            .update({ puntaje_total: sumaTotal })
+            .eq('id', pId)
+        }
+      }
+
+      await cargarResultados()
+      alert(`¡Recálculo exitoso! Se reevaluaron todas las respuestas de opción múltiple. Se corrigieron ${corregidas} notas y se actualizaron los puntajes de los jóvenes.`)
+
+    } catch (err) {
+      alert('Error al recalcular notas: ' + err.message)
+    } finally {
+      setRecalculando(false)
+    }
+  }
+
   const handleExportarIndividual = async (p) => {
     if (!sesion) return
     try {
@@ -173,7 +263,17 @@ export default function Resultados() {
                 <p style={{ color: 'var(--color-accent)', fontSize: '1rem' }}>{sesion.sociedades?.nombre}</p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleRecalcularMultiple} 
+                disabled={recalculando} 
+                className="btn btn-secondary" 
+                title="Reevalúa todas las respuestas de opción múltiple de esta sesión"
+                style={{ width: 'auto' }}
+              >
+                <RefreshCw size={16} className={recalculando ? 'spin-animation' : ''} />
+                {recalculando ? 'Recalculando...' : 'Reevaluar Múltiples'}
+              </button>
               <button onClick={() => navigate('/admin/ranking')} className="btn btn-secondary hide-mobile" style={{ width: 'auto' }}>
                 <Trophy size={16} /> Ver en Ranking
               </button>

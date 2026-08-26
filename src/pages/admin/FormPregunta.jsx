@@ -46,21 +46,33 @@ export default function FormPregunta() {
       setTipo(data.tipo)
       setTexto(data.texto)
       setPuntaje(data.puntaje)
-      setRespuestaCorrecta(data.respuesta_correcta)
       setActiva(data.activa)
+
+      let resCorrecta = data.respuesta_correcta || ''
 
       if (data.tipo === 'multiple' && data.opciones) {
         let opcs = typeof data.opciones === 'string' ? JSON.parse(data.opciones) : data.opciones
-        // Asegurarnos de que las opciones se mapeen correctamente a los inputs
         if (Array.isArray(opcs)) {
-          // A veces pueden guardar strings directamente ["...", "..."], ajustamos el formato
+          let mapped = []
           if (typeof opcs[0] === 'string') {
-            setOpciones(opcs.map((o, i) => ({ letra: String.fromCharCode(65 + i), texto: o })))
+            mapped = opcs.map((o, i) => ({ letra: String.fromCharCode(65 + i), texto: o }))
           } else if (opcs[0]?.texto) {
-            setOpciones(opcs)
+            mapped = opcs
+          }
+          setOpciones(mapped)
+
+          // Si respuesta_correcta era una letra (ej: 'B'), resolver al texto correspondiente
+          const letterMatch = resCorrecta.trim().match(/^([A-Za-z])[\)\.\:\-]?$/)
+          if (letterMatch) {
+            const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65
+            if (idx >= 0 && idx < mapped.length && mapped[idx]?.texto) {
+              resCorrecta = mapped[idx].texto
+            }
           }
         }
       }
+
+      setRespuestaCorrecta(resCorrecta)
     } catch (err) {
       setError('Error al cargar la pregunta: ' + err.message)
     } finally {
@@ -69,9 +81,15 @@ export default function FormPregunta() {
   }
 
   const handleOpcionChange = (index, nuevoTexto) => {
+    const textoAntiguo = opciones[index].texto
     const nuevas = [...opciones]
     nuevas[index].texto = nuevoTexto
     setOpciones(nuevas)
+
+    // Si la opción que se modificó era la respuesta correcta, actualizar también respuestaCorrecta
+    if (respuestaCorrecta === textoAntiguo) {
+      setRespuestaCorrecta(nuevoTexto)
+    }
   }
 
   const handleGuardar = async (e) => {
@@ -88,6 +106,8 @@ export default function FormPregunta() {
     }
 
     let opcionesFinales = null
+    let respuestaFinal = respuestaCorrecta.trim()
+
     if (tipo === 'multiple') {
       const opcionesValidas = opciones.filter(o => o.texto.trim() !== '')
       if (opcionesValidas.length < 2) {
@@ -95,8 +115,16 @@ export default function FormPregunta() {
         setCargando(false)
         return
       }
-      // Guardaremos solo el array de strings para las opciones como JSONB
       opcionesFinales = opcionesValidas.map(o => o.texto.trim())
+
+      // Verificar si respuestaFinal es una letra y resolverla
+      const letterMatch = respuestaFinal.match(/^([A-Za-z])[\)\.\:\-]?$/)
+      if (letterMatch) {
+        const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65
+        if (idx >= 0 && idx < opcionesFinales.length) {
+          respuestaFinal = opcionesFinales[idx]
+        }
+      }
     }
 
     try {
@@ -104,7 +132,7 @@ export default function FormPregunta() {
         tipo,
         texto: texto.trim(),
         puntaje: parseInt(puntaje),
-        respuesta_correcta: respuestaCorrecta.trim(),
+        respuesta_correcta: respuestaFinal,
         activa,
         opciones: opcionesFinales
       }
@@ -157,8 +185,8 @@ export default function FormPregunta() {
         {exito && <div className="alert alert-success"><span>{exito}</span></div>}
 
         <form onSubmit={handleGuardar} className="card">
-          <div style={{ display: 'flex', gap: 'var(--space-lg)', marginBottom: 'var(--space-lg)' }}>
-            <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-lg)', marginBottom: 'var(--space-lg)', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: 2, minWidth: '200px', marginBottom: 0 }}>
               <label className="form-label">Tipo de Pregunta</label>
               <select className="form-input" value={tipo} onChange={e => setTipo(e.target.value)}>
                 <option value="multiple">Opción Múltiple</option>
@@ -167,7 +195,7 @@ export default function FormPregunta() {
               </select>
             </div>
             
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+            <div className="form-group" style={{ flex: 1, minWidth: '100px', marginBottom: 0 }}>
               <label className="form-label">Puntaje</label>
               <input type="number" min="1" className="form-input" value={puntaje} onChange={e => setPuntaje(e.target.value)} required />
             </div>
@@ -210,7 +238,7 @@ export default function FormPregunta() {
                 ))}
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 'var(--space-md)' }}>
-                Deja en blanco las opciones que no necesites (mínimo 2).
+                Escribe las opciones arriba y luego marca cuál de ellas es la correcta abajo.
               </p>
             </div>
           )}
@@ -218,19 +246,48 @@ export default function FormPregunta() {
           <div className="form-group">
             <label className="form-label">Respuesta Correcta / Referencia</label>
             {tipo === 'multiple' ? (
-              <>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={respuestaCorrecta} 
-                  onChange={e => setRespuestaCorrecta(e.target.value)} 
-                  placeholder="Escribe exactamente el texto de la opción correcta"
-                  required
-                />
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-warning)', marginTop: '4px' }}>
-                  Debe coincidir exactamente con el texto de la opción correcta (sin la letra).
-                </p>
-              </>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {opciones.filter(o => o.texto.trim() !== '').length === 0 ? (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', background: 'var(--color-bg-base)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
+                    Ingresa al menos 2 opciones arriba para seleccionar cuál es la correcta.
+                  </p>
+                ) : (
+                  opciones.filter(o => o.texto.trim() !== '').map((opc, index) => {
+                    const isSelected = respuestaCorrecta.trim().toLowerCase() === opc.texto.trim().toLowerCase()
+                    return (
+                      <label
+                        key={index}
+                        onClick={() => setRespuestaCorrecta(opc.texto.trim())}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          borderRadius: 'var(--radius-md)',
+                          border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                          background: isSelected ? 'var(--color-primary-glow)' : 'var(--color-bg-base)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="opcion_correcta"
+                          checked={isSelected}
+                          onChange={() => setRespuestaCorrecta(opc.texto.trim())}
+                        />
+                        <span style={{ fontWeight: 700, color: 'var(--color-accent)' }}>Opción {opc.letra}:</span>
+                        <span style={{ flex: 1, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>{opc.texto}</span>
+                        {isSelected && (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                            ✓ Correcta
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })
+                )}
+              </div>
             ) : (
               <>
                 <textarea 
