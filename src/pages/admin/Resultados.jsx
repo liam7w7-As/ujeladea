@@ -6,6 +6,7 @@ import { generarReporteResultados, generarReporteIndividual } from '../../lib/pd
 import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3, FileText, Info, RefreshCw } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
+import Modal from '../../components/Modal'
 
 export default function Resultados() {
   const { id } = useParams()
@@ -18,6 +19,18 @@ export default function Resultados() {
   const [estadisticas, setEstadisticas] = useState(null)
   const [generandoPdfId, setGenerandoPdfId] = useState(null)
   const [recalculando, setRecalculando] = useState(false)
+  
+  // Modal de notificación general
+  const [modal, setModal] = useState({ isOpen: false, titulo: '', mensaje: '', tipo: 'info' })
+
+  // Progreso interactivo de reevaluación
+  const [progresoRecalculo, setProgresoRecalculo] = useState({
+    activo: false,
+    etapa: '',
+    actual: 0,
+    total: 0,
+    corregidas: 0
+  })
 
   useEffect(() => {
     cargarResultados()
@@ -113,6 +126,13 @@ export default function Resultados() {
   const handleRecalcularMultiple = async () => {
     try {
       setRecalculando(true)
+      setProgresoRecalculo({
+        activo: true,
+        etapa: 'Consultando participantes de la sesión...',
+        actual: 0,
+        total: 0,
+        corregidas: 0
+      })
       
       // 1. Participantes de esta sesión
       const { data: parts, error: errParts } = await supabase
@@ -122,11 +142,17 @@ export default function Resultados() {
       
       if (errParts) throw errParts
       if (!parts || parts.length === 0) {
-        alert('No hay participantes en esta sesión.')
+        setProgresoRecalculo({ activo: false, etapa: '', actual: 0, total: 0, corregidas: 0 })
+        setModal({ isOpen: true, titulo: 'Sin participantes', mensaje: 'No hay participantes registrados en esta sesión.', tipo: 'warning' })
         return
       }
 
       const partIds = parts.map(p => p.id)
+
+      setProgresoRecalculo(prev => ({
+        ...prev,
+        etapa: 'Cargando respuestas de opción múltiple...'
+      }))
 
       // 2. Obtener todas las respuestas de múltiple opción para estos participantes
       const { data: resps, error: errResps } = await supabase
@@ -151,10 +177,20 @@ export default function Resultados() {
 
       if (errResps) throw errResps
 
+      const totalResps = (resps || []).length
       let corregidas = 0
 
+      setProgresoRecalculo({
+        activo: true,
+        etapa: `Reevaluando ${totalResps} respuestas de selección múltiple...`,
+        actual: 0,
+        total: totalResps,
+        corregidas: 0
+      })
+
       // 3. Evaluar cada respuesta con la lógica mejorada
-      for (const r of (resps || [])) {
+      for (let i = 0; i < totalResps; i++) {
+        const r = resps[i]
         const evaluacion = calcularPuntajeAutomatico(r.preguntas, r.respuesta_dada)
         
         // Si el puntaje o estado cambió, actualizar en DB
@@ -170,10 +206,26 @@ export default function Resultados() {
 
           if (!errUpd) corregidas++
         }
+
+        // Actualizar barra de progreso
+        setProgresoRecalculo(prev => ({
+          ...prev,
+          actual: i + 1,
+          corregidas
+        }))
       }
 
       // 4. Recalcular el puntaje_total de cada participante sumando todas sus respuestas
-      for (const pId of partIds) {
+      setProgresoRecalculo({
+        activo: true,
+        etapa: `Actualizando puntajes de ${partIds.length} participantes...`,
+        actual: 0,
+        total: partIds.length,
+        corregidas
+      })
+
+      for (let j = 0; j < partIds.length; j++) {
+        const pId = partIds[j]
         const { data: todasResp, error: errSum } = await supabase
           .from('respuestas')
           .select('puntaje_obtenido')
@@ -186,13 +238,31 @@ export default function Resultados() {
             .update({ puntaje_total: sumaTotal })
             .eq('id', pId)
         }
+
+        setProgresoRecalculo(prev => ({
+          ...prev,
+          actual: j + 1
+        }))
       }
 
       await cargarResultados()
-      alert(`¡Recálculo exitoso! Se reevaluaron todas las respuestas de opción múltiple. Se corrigieron ${corregidas} notas y se actualizaron los puntajes de los jóvenes.`)
+
+      setProgresoRecalculo({ activo: false, etapa: '', actual: 0, total: 0, corregidas: 0 })
+      setModal({
+        isOpen: true,
+        titulo: '¡Recálculo Exitoso!',
+        mensaje: `Se reevaluaron exitosamente ${totalResps} respuestas de opción múltiple. Se corrigieron ${corregidas} notas y se actualizaron los puntajes totales de todos los jóvenes.`,
+        tipo: 'success'
+      })
 
     } catch (err) {
-      alert('Error al recalcular notas: ' + err.message)
+      setProgresoRecalculo({ activo: false, etapa: '', actual: 0, total: 0, corregidas: 0 })
+      setModal({
+        isOpen: true,
+        titulo: 'Error al recalcular',
+        mensaje: 'Ocurrió un error: ' + err.message,
+        tipo: 'error'
+      })
     } finally {
       setRecalculando(false)
     }
@@ -233,7 +303,12 @@ export default function Resultados() {
         nombreArchivo: `Examen_${p.nombre.replace(/\s+/g, '_')}_Resultados.pdf`
       })
     } catch (err) {
-      alert('Error al generar el reporte individual: ' + err.message)
+      setModal({
+        isOpen: true,
+        titulo: 'Error en PDF',
+        mensaje: 'Error al generar el reporte individual: ' + err.message,
+        tipo: 'error'
+      })
     } finally {
       setGenerandoPdfId(null)
     }
@@ -478,7 +553,82 @@ export default function Resultados() {
 
       </div>
       </div>
+
+      {/* Modal de Progreso de Recálculo */}
+      {progresoRecalculo.activo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 'var(--space-md)'
+        }}>
+          <div className="card animate-in" style={{ maxWidth: '440px', width: '100%', padding: 'var(--space-2xl) var(--space-xl)', textAlign: 'center', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-xl)' }}>
+            <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(212, 160, 23, 0.1)', marginBottom: 'var(--space-md)' }}>
+              <RefreshCw size={36} color="var(--color-accent)" className="spin-animation" />
+            </div>
+            
+            <h3 style={{ fontSize: '1.3rem', marginBottom: 'var(--space-xs)' }}>
+              Reevaluando Selección Múltiple
+            </h3>
+            
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-lg)' }}>
+              {progresoRecalculo.etapa}
+            </p>
+
+            {/* Barra de progreso */}
+            {progresoRecalculo.total > 0 && (
+              <div style={{ marginBottom: 'var(--space-md)' }}>
+                <div style={{
+                  height: '10px',
+                  width: '100%',
+                  background: 'var(--color-bg-base)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  border: '1px solid var(--color-border)',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.round((progresoRecalculo.actual / progresoRecalculo.total) * 100)}%`,
+                    background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent))',
+                    borderRadius: '10px',
+                    transition: 'width 0.2s ease'
+                  }} />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '6px' }}>
+                  <span>{progresoRecalculo.actual} de {progresoRecalculo.total}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>
+                    {Math.round((progresoRecalculo.actual / progresoRecalculo.total) * 100)}%
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {progresoRecalculo.corregidas > 0 && (
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', background: 'rgba(39, 174, 96, 0.1)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', display: 'inline-block' }}>
+                ✓ {progresoRecalculo.corregidas} respuesta(s) corregida(s)
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Alertas y Confirmaciones */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal(prev => ({ ...prev, isOpen: false }))}
+        titulo={modal.titulo}
+        mensaje={modal.mensaje}
+        tipo={modal.tipo}
+      />
     </div>
   )
 }
+
 
