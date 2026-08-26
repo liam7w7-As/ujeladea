@@ -47,22 +47,43 @@ export default function Resultados() {
       
       if (errorPart) throw errorPart
 
-      // 3. Cargar respuestas para ver si hay pendientes (simulación de lógica real)
+      const partIds = dataPart.map(p => p.id)
+
+      // 3. Cargar TODAS las respuestas para calcular puntaje máximo por joven
+      //    y detectar pendientes
       const { data: dataResp, error: errorResp } = await supabase
         .from('respuestas')
-        .select('id, participante_id, puntaje_obtenido')
-        .in('participante_id', dataPart.map(p => p.id))
-        .is('puntaje_obtenido', null) // asumiendo que null es pendiente de calificar
+        .select('participante_id, puntaje_obtenido, calificado_por, preguntas(puntaje)')
+        .in('participante_id', partIds)
 
       if (errorResp) throw errorResp
 
-      // Mapear pendientes a los participantes
-      const partConPendientes = dataPart.map(p => ({
-        ...p,
-        pendientes: dataResp.filter(r => r.participante_id === p.id).length
-      }))
+      // 4. Cargar alertas de seguridad por participante
+      const { data: dataAlertas, error: errorAlertas } = await supabase
+        .from('resumen_alertas')
+        .select('participante_id, total_eventos')
+        .eq('sesion_id', id)
 
-      setParticipantes(partConPendientes)
+      // Construir mapa de alertas por participante
+      const alertasPorPart = {}
+      if (!errorAlertas && dataAlertas) {
+        dataAlertas.forEach(a => { alertasPorPart[a.participante_id] = a.total_eventos })
+      }
+
+      // 5. Calcular puntaje máximo y pendientes por participante
+      const partConDetalle = dataPart.map(p => {
+        const respsDeEstePart = dataResp.filter(r => r.participante_id === p.id)
+        const puntajeMax = respsDeEstePart.reduce((sum, r) => sum + (r.preguntas?.puntaje || 0), 0)
+        const pendientes = respsDeEstePart.filter(r => r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null).length
+        return {
+          ...p,
+          puntaje_max: puntajeMax,
+          pendientes,
+          alertas: alertasPorPart[p.id] || 0
+        }
+      })
+
+      setParticipantes(partConDetalle)
 
     } catch (err) {
       setError('Error al cargar los resultados: ' + err.message)
@@ -225,14 +246,14 @@ export default function Resultados() {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {participantes.map((p, index) => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '16px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '16px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
               
-              <div style={{ width: '40px', fontWeight: 600, color: index < 3 ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+              <div style={{ width: '40px', fontWeight: 600, color: index < 3 ? 'var(--color-accent)' : 'var(--color-text-muted)', flexShrink: 0 }}>
                 #{index + 1}
               </div>
               
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '1.05rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ flex: 1, minWidth: '120px' }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   {p.nombre}
                   {!p.del_censo && (
                     <span style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)', borderRadius: '10px', textTransform: 'uppercase' }}>
@@ -242,19 +263,38 @@ export default function Resultados() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+
+                {/* Alertas del joven */}
+                {p.alertas > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', padding: '3px 8px', borderRadius: '10px', background: p.alertas >= 20 ? 'rgba(192,57,43,0.12)' : 'rgba(230,126,34,0.12)', color: p.alertas >= 20 ? 'var(--color-error)' : 'var(--color-warning)', border: `1px solid ${p.alertas >= 20 ? 'rgba(192,57,43,0.3)' : 'rgba(230,126,34,0.3)'}` }}>
+                    <ShieldAlert size={13} />
+                    {p.alertas} alertas
+                  </div>
+                )}
+
+                {/* Pendientes */}
                 {p.pendientes > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--color-warning)' }}>
                     <AlertCircle size={14} />
-                    {p.pendientes} pendientes de calificar
+                    {p.pendientes} pend.
                   </div>
                 )}
                 
-                <div style={{ textAlign: 'right', minWidth: '80px' }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    {p.puntaje_total} <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>pts</span>
+                {/* Puntaje obtenido / máximo */}
+                <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent)', lineHeight: 1 }}>
+                    {p.puntaje_total ?? 0}
+                    <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 400 }}> / {p.puntaje_max ?? '?'}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400 }}> pts</span>
                   </div>
+                  {p.puntaje_max > 0 && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                      {Math.round((p.puntaje_total / p.puntaje_max) * 100)}% de efectividad
+                    </div>
+                  )}
                 </div>
+
               </div>
 
             </div>

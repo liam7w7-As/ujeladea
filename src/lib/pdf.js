@@ -206,14 +206,21 @@ export const generarReporteResultados = async ({
   cursorY += 6
 
   // ── TABLA DE PARTICIPANTES ─────────────────────────────────────────────────
-  const cols = ['#', 'Nombre del Joven', 'Del Censo', 'Puntaje Obtenido', 'Estado']
-  const rows = participantes.map((p, idx) => [
-    `${idx + 1}°`,
-    p.nombre,
-    p.del_censo ? 'Sí' : 'Invitado',
-    `${p.puntaje_total ?? 0} pts`,
-    p.pendientes > 0 ? `${p.pendientes} pend.` : '✓ Completo',
-  ])
+  const cols = ['#', 'Nombre del Joven', 'Del Censo', 'Puntaje / Máx.', 'Efectividad', 'Alertas', 'Estado']
+  const rows = participantes.map((p, idx) => {
+    const efectividad = p.puntaje_max > 0
+      ? `${Math.round(((p.puntaje_total ?? 0) / p.puntaje_max) * 100)}%`
+      : '—'
+    return [
+      `${idx + 1}°`,
+      p.nombre,
+      p.del_censo ? 'Sí' : 'Invitado',
+      `${p.puntaje_total ?? 0} / ${p.puntaje_max ?? '?'} pts`,
+      efectividad,
+      p.alertas > 0 ? `${p.alertas}` : '—',
+      p.pendientes > 0 ? `${p.pendientes} pend.` : '✓ Completo',
+    ]
+  })
 
   autoTable(doc, {
     startY: cursorY,
@@ -225,28 +232,31 @@ export const generarReporteResultados = async ({
       fillColor: C.primary,
       textColor: C.white,
       fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
+      fontSize: 7.5,
+      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
     },
     bodyStyles: {
-      fontSize: 8.5,
-      cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 },
+      fontSize: 8,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
       textColor: C.dark,
     },
     alternateRowStyles: {
       fillColor: [248, 246, 250],
     },
     columnStyles: {
-      0: { halign: 'center', fontStyle: 'bold', cellWidth: 12, textColor: C.primary },
-      1: { fontStyle: 'bold', cellWidth: 70 },
-      2: { halign: 'center', cellWidth: 24 },
-      3: { halign: 'center', fontStyle: 'bold', cellWidth: 36 },
-      4: { halign: 'center', cellWidth: 28 },
+      0: { halign: 'center', fontStyle: 'bold', cellWidth: 10, textColor: C.primary },
+      1: { fontStyle: 'bold', cellWidth: 55 },
+      2: { halign: 'center', cellWidth: 18 },
+      3: { halign: 'center', fontStyle: 'bold', cellWidth: 32 },
+      4: { halign: 'center', cellWidth: 20 },
+      5: { halign: 'center', cellWidth: 16 },
+      6: { halign: 'center', cellWidth: 22 },
     },
-    // Colorear la fila si hay pendientes
     didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 4) {
-        const raw = data.row.raw[4]
+      if (data.section !== 'body') return
+      // Estado (col 6)
+      if (data.column.index === 6) {
+        const raw = data.row.raw[6]
         if (raw && raw.includes('pend.')) {
           data.cell.styles.textColor = C.warning
           data.cell.styles.fontStyle = 'bold'
@@ -254,9 +264,28 @@ export const generarReporteResultados = async ({
           data.cell.styles.textColor = C.success
         }
       }
-      // Colorear la posición (columna 0) top 3
-      if (data.section === 'body' && data.column.index === 3) {
+      // Alertas (col 5) — rojo si >= 20
+      if (data.column.index === 5) {
+        const val = parseInt(data.row.raw[5])
+        if (!isNaN(val) && val >= 20) {
+          data.cell.styles.textColor = C.error
+          data.cell.styles.fontStyle = 'bold'
+        } else if (!isNaN(val) && val > 0) {
+          data.cell.styles.textColor = C.warning
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+      // Puntaje (col 3) — color acento
+      if (data.column.index === 3) {
         data.cell.styles.textColor = C.primary
+      }
+      // Efectividad (col 4) — color según rendimiento
+      if (data.column.index === 4) {
+        const val = parseInt(data.row.raw[4])
+        if (!isNaN(val)) {
+          data.cell.styles.textColor = val >= 80 ? C.success : val >= 60 ? C.warning : C.error
+          data.cell.styles.fontStyle = 'bold'
+        }
       }
     },
     didDrawPage: (data) => {
