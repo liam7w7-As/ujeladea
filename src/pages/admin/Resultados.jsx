@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, calcularPuntajeSociedad } from '../../lib/supabase'
-import { generarReporteResultados } from '../../lib/pdf'
-import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3 } from 'lucide-react'
+import { generarReporteResultados, generarReporteIndividual } from '../../lib/pdf'
+import { ArrowLeft, Download, Trophy, AlertCircle, CheckCircle2, Medal, Brain, ArrowRight, ShieldAlert, BarChart3, FileText, Info } from 'lucide-react'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 
@@ -15,6 +15,7 @@ export default function Resultados() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [estadisticas, setEstadisticas] = useState(null)
+  const [generandoPdfId, setGenerandoPdfId] = useState(null)
 
   useEffect(() => {
     cargarResultados()
@@ -105,6 +106,47 @@ export default function Resultados() {
       participantes,
       nombreArchivo: `Resultados_${sesion.sociedades?.nombre?.replace(/\s+/g, '_')}.pdf`
     })
+  }
+
+  const handleExportarIndividual = async (p) => {
+    if (!sesion) return
+    try {
+      setGenerandoPdfId(p.id)
+      const { data: respuestas, error: errResp } = await supabase
+        .from('respuestas')
+        .select(`
+          id,
+          respuesta_dada,
+          es_correcta,
+          puntaje_obtenido,
+          calificado_por,
+          preguntas (
+            texto,
+            respuesta_correcta,
+            puntaje,
+            tipo
+          )
+        `)
+        .eq('participante_id', p.id)
+        .order('id', { ascending: true })
+
+      if (errResp) throw errResp
+
+      await generarReporteIndividual({
+        sesion: {
+          sociedad: sesion.sociedades?.nombre,
+          iglesia: sesion.sociedades?.iglesia || '',
+          fecha: sesion.created_at,
+        },
+        participante: p,
+        respuestas: respuestas || [],
+        nombreArchivo: `Examen_${p.nombre.replace(/\s+/g, '_')}_Resultados.pdf`
+      })
+    } catch (err) {
+      alert('Error al generar el reporte individual: ' + err.message)
+    } finally {
+      setGenerandoPdfId(null)
+    }
   }
 
   if (cargando) return <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}><NavAdmin /><div className="page-wrapper"><div className="spinner" /></div></div>
@@ -242,7 +284,15 @@ export default function Resultados() {
           )}
 
         {/* Lista de Participantes */}
-        <h3 style={{ fontSize: '1.2rem', marginBottom: 'var(--space-md)' }}>Detalle por Participante</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-md)', flexWrap: 'wrap', gap: 'var(--space-sm)' }}>
+          <div>
+            <h3 style={{ fontSize: '1.2rem', margin: 0, marginBottom: '4px' }}>Detalle por Participante</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Info size={14} color="var(--color-accent)" /> 
+              El botón de reporte individual por joven funcionará mejor y con datos completos si el examen ya fue calificado en su totalidad.
+            </p>
+          </div>
+        </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {participantes.map((p, index) => (
@@ -282,7 +332,7 @@ export default function Resultados() {
                 )}
                 
                 {/* Puntaje obtenido / máximo */}
-                <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                <div style={{ textAlign: 'right', minWidth: '110px' }}>
                   <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent)', lineHeight: 1 }}>
                     {p.puntaje_total ?? 0}
                     <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 400 }}> / {p.puntaje_max ?? '?'}</span>
@@ -295,6 +345,31 @@ export default function Resultados() {
                   )}
                 </div>
 
+                {/* Botón Reporte Individual */}
+                <button
+                  onClick={() => handleExportarIndividual(p)}
+                  disabled={generandoPdfId === p.id}
+                  className="btn btn-secondary"
+                  title="Descargar reporte individual con preguntas y respuestas"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    minWidth: 'auto',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-base)'
+                  }}
+                >
+                  {generandoPdfId === p.id ? (
+                    <span className="spinner" style={{ width: '13px', height: '13px', borderWidth: '2px' }} />
+                  ) : (
+                    <FileText size={15} color="var(--color-accent)" />
+                  )}
+                  <span>Reporte</span>
+                </button>
+
               </div>
 
             </div>
@@ -306,3 +381,4 @@ export default function Resultados() {
     </div>
   )
 }
+

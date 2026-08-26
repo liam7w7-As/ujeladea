@@ -115,7 +115,7 @@ Evalúa la respuesta.
 
     // Buscar explícitamente el bloque JSON dentro de la respuesta por si el modelo habla antes o después
     const jsonMatch = content.match(/\{[\s\S]*\}/)
-    
+
     if (!jsonMatch) {
       throw new Error('El modelo no devolvió un objeto JSON válido en su respuesta. Respuesta cruda: ' + content)
     }

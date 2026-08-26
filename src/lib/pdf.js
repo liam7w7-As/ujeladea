@@ -415,3 +415,241 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
   if (win) win.document.title = nombreArchivo || 'Reporte'
   else doc.save(nombreArchivo || 'reporte.pdf')
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  REPORTE INDIVIDUAL POR PARTICIPANTE (Detalle Pregunta por Pregunta)
+// ─────────────────────────────────────────────────────────────────────────────
+export const generarReporteIndividual = async ({
+  sesion,        // { sociedad, iglesia, fecha }
+  participante,  // { nombre, del_censo, puntaje_total, puntaje_max, alertas, pendientes }
+  respuestas,    // array de respuestas con preguntas (texto, respuesta_correcta, puntaje, tipo)
+  nombreArchivo,
+}) => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const PW = doc.internal.pageSize.getWidth()
+  const PH = doc.internal.pageSize.getHeight()
+  const MARGIN = 14
+
+  // ── BANDA SUPERIOR ──────────────────────────────────────────────────────────
+  doc.setFillColor(...C.primary)
+  doc.rect(0, 0, PW, 38, 'F')
+
+  doc.setFillColor(...C.primaryLt)
+  doc.rect(0, 34, PW, 4, 'F')
+
+  // Logo
+  try {
+    const logoData = await getLogoBase64('/logo.png')
+    if (logoData) doc.addImage(logoData, 'PNG', MARGIN, 6, 22, 22)
+  } catch (_) {}
+
+  // Títulos
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(15)
+  doc.setTextColor(...C.white)
+  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 42, 15)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(240, 210, 220)
+  doc.text('1ra Etapa — HEBREOS', 42, 21)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.setTextColor(225, 195, 210)
+  doc.text('Reporte Individual de Respuestas', 42, 27)
+
+  // Fecha generación
+  const fechaStr = new Date().toLocaleDateString('es-ES', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  })
+  doc.setFontSize(7.5)
+  doc.setTextColor(210, 185, 195)
+  doc.text(fechaStr, PW - MARGIN, 22, { align: 'right' })
+
+  // ── DETALLES DEL JOVEN Y SOCIEDAD ──────────────────────────────────────────
+  let cursorY = 48
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16)
+  doc.setTextColor(...C.dark)
+  doc.text(participante.nombre, MARGIN, cursorY)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(...C.gray)
+  doc.text(`${sesion.sociedad || 'Sociedad'} ${sesion.iglesia ? '• ' + sesion.iglesia : ''} • ${participante.del_censo ? 'Miembro Oficial (Censo)' : 'Invitado'}`, MARGIN, cursorY + 6)
+
+  const fechaExamen = sesion.fecha ? new Date(sesion.fecha).toLocaleDateString('es-ES', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  }) : ''
+  if (fechaExamen) {
+    doc.setFontSize(8)
+    doc.text(`Examen realizado: ${fechaExamen}`, PW - MARGIN, cursorY + 3, { align: 'right' })
+  }
+
+  // Separador
+  cursorY += 13
+  doc.setDrawColor(...C.lightGray)
+  doc.setLineWidth(0.5)
+  doc.line(MARGIN, cursorY, PW - MARGIN, cursorY)
+  cursorY += 6
+
+  // ── TARJETAS RESUMEN DEL JOVEN ──────────────────────────────────────────────
+  const totalPreguntas = respuestas.length
+  const correctas = respuestas.filter(r => r.es_correcta === true).length
+  const incorrectas = respuestas.filter(r => r.es_correcta === false && r.calificado_por !== 'pendiente_ia' && r.puntaje_obtenido !== null).length
+  const pendientes = respuestas.filter(r => r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null).length
+  const puntajeObtenido = participante.puntaje_total ?? 0
+  const puntajeMaximo = participante.puntaje_max ?? respuestas.reduce((sum, r) => sum + (r.preguntas?.puntaje || 0), 0)
+  const efectividad = puntajeMaximo > 0 ? Math.round((puntajeObtenido / puntajeMaximo) * 100) : 0
+
+  const tarjetas = [
+    {
+      label: 'Puntaje Obtenido',
+      value: `${puntajeObtenido} / ${puntajeMaximo}`,
+      sub: `${efectividad}% de efectividad`,
+      color: efectividad >= 80 ? C.success : efectividad >= 60 ? C.warning : C.error
+    },
+    {
+      label: 'Respuestas',
+      value: `${correctas} / ${totalPreguntas}`,
+      sub: `${correctas} corr. • ${incorrectas} incorr.`,
+      color: C.primary
+    },
+    {
+      label: 'Evaluación',
+      value: pendientes > 0 ? `${pendientes} PEND.` : 'COMPLETO',
+      sub: pendientes > 0 ? 'Preguntas por evaluar' : '100% Calificado',
+      color: pendientes > 0 ? C.warning : C.success
+    },
+    {
+      label: 'Seguridad',
+      value: `${participante.alertas || 0}`,
+      sub: (participante.alertas || 0) >= 20 ? 'Alertas críticas' : (participante.alertas || 0) > 0 ? 'Alertas leves' : 'Sin incidentes',
+      color: (participante.alertas || 0) >= 20 ? C.error : (participante.alertas || 0) > 0 ? C.warning : C.success
+    }
+  ]
+
+  const cardW = (PW - MARGIN * 2 - (tarjetas.length - 1) * 4) / tarjetas.length
+  tarjetas.forEach((t, i) => {
+    const cx = MARGIN + i * (cardW + 4)
+    roundedRect(doc, cx, cursorY, cardW, 22, 2, C.lightGray)
+    // Banda de color izquierda
+    doc.setFillColor(...t.color)
+    doc.roundedRect(cx, cursorY, 3, 22, 1, 1, 'F')
+    // Etiqueta
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.5)
+    doc.setTextColor(...C.gray)
+    doc.text(t.label.toUpperCase(), cx + 6, cursorY + 6)
+    // Valor
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(...t.color)
+    doc.text(t.value, cx + 6, cursorY + 14)
+    // Sub
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6)
+    doc.setTextColor(...C.gray)
+    const subLines = doc.splitTextToSize(t.sub, cardW - 10)
+    doc.text(subLines, cx + 6, cursorY + 19)
+  })
+
+  cursorY += 28
+
+  // ── TABLA DETALLADA DE PREGUNTAS ───────────────────────────────────────────
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...C.dark)
+  doc.text('Detalle de Preguntas y Respuestas', MARGIN, cursorY)
+  cursorY += 5
+
+  const cols = ['#', 'Pregunta', 'Respuesta del Joven', 'Respuesta Correcta / Referencia', 'Puntos', 'Estado']
+  const rows = respuestas.map((r, idx) => {
+    const pMax = r.preguntas?.puntaje || 0
+    const pObt = r.puntaje_obtenido ?? 0
+    const isPend = r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null
+    const estado = isPend ? 'Pendiente' : r.es_correcta ? 'Correcta' : 'Incorrecta'
+
+    return [
+      `${idx + 1}`,
+      r.preguntas?.texto || '—',
+      r.respuesta_dada || '(Sin respuesta)',
+      r.preguntas?.respuesta_correcta || '—',
+      isPend ? `? / ${pMax} pts` : `${pObt} / ${pMax} pts`,
+      estado
+    ]
+  })
+
+  autoTable(doc, {
+    startY: cursorY,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [cols],
+    body: rows,
+    theme: 'plain',
+    headStyles: {
+      fillColor: C.primary,
+      textColor: C.white,
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
+    },
+    bodyStyles: {
+      fontSize: 7.5,
+      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+      textColor: C.dark,
+    },
+    alternateRowStyles: {
+      fillColor: [248, 246, 250],
+    },
+    columnStyles: {
+      0: { halign: 'center', fontStyle: 'bold', cellWidth: 8, textColor: C.primary },
+      1: { cellWidth: 55 },
+      2: { cellWidth: 46 },
+      3: { cellWidth: 46 },
+      4: { halign: 'center', fontStyle: 'bold', cellWidth: 16 },
+      5: { halign: 'center', cellWidth: 17, fontStyle: 'bold' },
+    },
+    didParseCell: (data) => {
+      if (data.section !== 'body') return
+      // Estado (col 5)
+      if (data.column.index === 5) {
+        const raw = data.row.raw[5]
+        if (raw === 'Correcta') {
+          data.cell.styles.textColor = C.success
+        } else if (raw === 'Incorrecta') {
+          data.cell.styles.textColor = C.error
+        } else if (raw === 'Pendiente') {
+          data.cell.styles.textColor = C.warning
+        }
+      }
+      // Puntos (col 4)
+      if (data.column.index === 4) {
+        const rawEstado = data.row.raw[5]
+        if (rawEstado === 'Correcta') {
+          data.cell.styles.textColor = C.success
+        } else if (rawEstado === 'Incorrecta') {
+          data.cell.styles.textColor = C.error
+        }
+      }
+    },
+    didDrawPage: (data) => {
+      const pageNum = doc.internal.getNumberOfPages()
+      doc.setFillColor(...C.lightGray)
+      doc.rect(0, PH - 14, PW, 14, 'F')
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(...C.gray)
+      doc.text(`OLIMPIADAS BÍBLICAS UJELADEA 2026 — Participante: ${participante.nombre}`, MARGIN, PH - 6)
+      doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
+    },
+  })
+
+  const blob = doc.output('blob')
+  const url = URL.createObjectURL(blob)
+  const win = window.open(url, '_blank')
+  if (win) win.document.title = nombreArchivo || `Examen_${participante.nombre}`
+  else doc.save(nombreArchivo || `Examen_${participante.nombre}.pdf`)
+}

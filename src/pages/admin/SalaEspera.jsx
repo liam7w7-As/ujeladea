@@ -49,7 +49,7 @@ export default function SalaEspera() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'participantes',
+          table: 'participantes',   
           filter: `sesion_id=eq.${id}`
         },
         (payload) => {
