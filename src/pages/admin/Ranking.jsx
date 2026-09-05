@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { obtenerDatosCompletosRanking } from '../../lib/supabase'
-import { generarReportePDF, generarInformeEjecutivoDirectiva } from '../../lib/pdf'
+import { generarReportePDF, generarInformeOficialDirectiva } from '../../lib/pdf'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 import { 
@@ -44,20 +44,20 @@ export default function Ranking() {
     return <EstadoBadge estado="regular" />
   }
 
-  // Exportar Informe Formal Ejecutivo para la Directiva
+  // Exportar Informe Formal Oficial para la Directiva
   const exportarInformeDirectiva = async () => {
     if (!datos.rankingSociedades || datos.rankingSociedades.length === 0) return
     try {
       setGenerandoPDF(true)
-      await generarInformeEjecutivoDirectiva({
+      await generarInformeOficialDirectiva({
         rankingSociedades: datos.rankingSociedades,
         rankingDisciplina: datos.rankingDisciplina,
         topJovenes: datos.topJovenes,
         metricasGlobales: datos.metricasGlobales || {},
-        nombreArchivo: `Informe_Ejecutivo_Directiva_UJELADEA_${new Date().toISOString().split('T')[0]}.pdf`
+        nombreArchivo: `Informe_Oficial_Directiva_UJELADEA_${new Date().toISOString().split('T')[0]}.pdf`
       })
     } catch (err) {
-      console.error('Error generando informe ejecutivo:', err)
+      console.error('Error generando informe oficial:', err)
       alert('Hubo un inconveniente al generar el informe: ' + err.message)
     } finally {
       setGenerandoPDF(false)
@@ -123,7 +123,7 @@ export default function Ranking() {
                 disabled={generandoPDF || cargando || rankingSociedades.length === 0}
                 className="btn btn-primary"
                 style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(143,25,55,0.3)' }}
-                title="Genera el informe ejecutivo oficial para presentar a la directiva y pastores"
+                title="Genera el informe oficial para presentar a la directiva y pastores"
               >
                 {generandoPDF ? <Loader2 className="spinner" size={18} /> : <FileText size={18} />}
                 <span>{generandoPDF ? 'Generando Informe...' : 'Informe para Directiva (PDF)'}</span>

@@ -655,9 +655,9 @@ export const generarReporteIndividual = async ({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  INFORME EJECUTIVO OFICIAL PARA LA DIRECTIVA DE UJELADEA
+//  INFORME OFICIAL PARA LA DIRECTIVA DE UJELADEA
 // ─────────────────────────────────────────────────────────────────────────────
-export const generarInformeEjecutivoDirectiva = async ({
+export const generarInformeOficialDirectiva = async ({
   rankingSociedades = [],
   rankingDisciplina = [],
   topJovenes = [],
@@ -687,7 +687,7 @@ export const generarInformeEjecutivoDirectiva = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...C.accent)
-  doc.text('UNIÓN DE JÓVENES EVANGÉLICOS LUTERANOS (UJELADEA)', 42, 13)
+  doc.text('UNIÓN JUVENTUD EVANGÉLICA LOS AMIGOS DISTRITO EL ALTO (UJELADEA)', 42, 13)
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
@@ -697,7 +697,7 @@ export const generarInformeEjecutivoDirectiva = async ({
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
   doc.setTextColor(240, 215, 225)
-  doc.text('INFORME EJECUTIVO DE EVALUACIÓN GENERAL Y AUDITORÍA DE RESULTADOS', 42, 27)
+  doc.text('INFORME OFICIAL DE EVALUACIÓN GENERAL Y AUDITORÍA DE RESULTADOS', 42, 27)
 
   // Badge Directiva / Fecha
   roundedRect(doc, PW - MARGIN - 48, 8, 48, 8, 2, [180, 40, 70])
@@ -720,7 +720,7 @@ export const generarInformeEjecutivoDirectiva = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(...C.primary)
-  doc.text('PANEL EJECUTIVO DE INDICADORES GENERALES', MARGIN, cursorY)
+  doc.text('PANEL DE INDICADORES GENERALES DEL TORNEO', MARGIN, cursorY)
   cursorY += 4
 
   const kpiW = (CONTENT_W - 8) / 3
@@ -801,9 +801,9 @@ export const generarInformeEjecutivoDirectiva = async ({
     const podioH = 18
 
     const top3 = [
-      { item: rankingSociedades[0], titulo: '1° LUGAR — CAMPEÓN', icon: 'ORO', bg: [255, 248, 230], border: C.accent, txt: [180, 130, 20] },
-      { item: rankingSociedades[1], titulo: '2° LUGAR — SUBCAMPEÓN', icon: 'PLATA', bg: [248, 249, 250], border: [160, 160, 170], txt: [110, 110, 120] },
-      { item: rankingSociedades[2], titulo: '3° LUGAR — TERCER PUESTO', icon: 'BRONCE', bg: [254, 246, 240], border: [205, 127, 50], txt: [160, 95, 40] }
+      { item: rankingSociedades[0], titulo: '1° LUGAR — CAMPEÓN', bg: [255, 248, 230], border: C.accent, txt: [180, 130, 20] },
+      { item: rankingSociedades[1], titulo: '2° LUGAR — SUBCAMPEÓN', bg: [248, 249, 250], border: [160, 160, 170], txt: [110, 110, 120] },
+      { item: rankingSociedades[2], titulo: '3° LUGAR — TERCER PUESTO', bg: [254, 246, 240], border: [205, 127, 50], txt: [160, 95, 40] }
     ]
 
     top3.forEach((pod, idx) => {
@@ -863,9 +863,9 @@ export const generarInformeEjecutivoDirectiva = async ({
 
   const filasSociedades = rankingSociedades.map((item, idx) => {
     let dist = 'Aprobado'
-    if (idx === 0) dist = '🥇 Campeón'
-    else if (idx === 1) dist = '🥈 Subcampeón'
-    else if (idx === 2) dist = '🥉 3° Puesto'
+    if (idx === 0) dist = '1° Campeón'
+    else if (idx === 1) dist = '2° Subcampeón'
+    else if (idx === 2) dist = '3° Puesto'
     else if (item.porcentaje >= 80) dist = 'Destacado'
     else if (item.porcentaje < 60) dist = 'Regular'
 
@@ -950,7 +950,7 @@ export const generarInformeEjecutivoDirectiva = async ({
   // Continuar después de la tabla
   cursorY = doc.lastAutoTable.finalY + 8
 
-  // Si no queda espacio para el cuadro individual y firmas en la página actual, saltar de página
+  // Si no queda espacio para el cuadro individual en la página actual, saltar de página
   if (cursorY + 60 > PH - 25) {
     doc.addPage()
     cursorY = 20
@@ -975,9 +975,9 @@ export const generarInformeEjecutivoDirectiva = async ({
 
   const filasJovenes = topJovenes.map((j, idx) => {
     let merito = 'Mención de Honor'
-    if (idx === 0) merito = '🥇 1er Lugar Individual'
-    else if (idx === 1) merito = '🥈 2do Lugar Individual'
-    else if (idx === 2) merito = '🥉 3er Lugar Individual'
+    if (idx === 0) merito = '1er Lugar (Oro)'
+    else if (idx === 1) merito = '2do Lugar (Plata)'
+    else if (idx === 2) merito = '3er Lugar (Bronce)'
 
     return [
       `${idx + 1}°`,
@@ -1044,71 +1044,120 @@ export const generarInformeEjecutivoDirectiva = async ({
 
   cursorY = doc.lastAutoTable.finalY + 8
 
-  // ── SECCIÓN 3: AUDITORÍA TÉCNICA Y FIRMAS ─────────────────────────────────
-  // Si no entra el bloque de firmas (requiere unos 45mm), pasar a nueva página
-  if (cursorY + 45 > PH - 20) {
+  // ── SECCIÓN 3: METODOLOGÍA, FORMATO DE PRUEBA Y CRITERIOS DE EVALUACIÓN ────
+  // Iniciar en nueva página si queda poco espacio para que la documentación quede impecable
+  if (cursorY + 95 > PH - 20) {
     doc.addPage()
     cursorY = 20
   }
 
-  // Caja de Auditoría y Juego Limpio
-  roundedRect(doc, MARGIN, cursorY, CONTENT_W, 14, 2, [245, 248, 252])
-  doc.setDrawColor(200, 220, 240)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...C.primary)
+  doc.text('3. METODOLOGÍA, FORMATO DE PRUEBA Y CRITERIOS DE EVALUACIÓN', MARGIN, cursorY)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(...C.gray)
+  doc.text('Documentación técnica sobre el diseño del examen, ponderación de preguntas y reglas de clasificación.', MARGIN, cursorY + 4)
+  cursorY += 7.5
+
+  // Caja A: Estructura del Examen y Tipos de Pregunta
+  roundedRect(doc, MARGIN, cursorY, CONTENT_W, 26, 2, [248, 249, 252])
+  doc.setDrawColor(210, 220, 235)
   doc.setLineWidth(0.4)
-  doc.roundedRect(MARGIN, cursorY, CONTENT_W, 14, 2, 2, 'D')
+  doc.roundedRect(MARGIN, cursorY, CONTENT_W, 26, 2, 2, 'D')
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
-  doc.setTextColor(30, 80, 140)
-  doc.text('AUDITORÍA TÉCNICA Y CONTROL DE INTEGRIDAD DIGITAL:', MARGIN + 4, cursorY + 4.5)
+  doc.setFontSize(8)
+  doc.setTextColor(30, 70, 130)
+  doc.text('A. ESTRUCTURA DEL EXAMEN Y TIPOS DE PREGUNTAS (LIBRO DE HEBREOS):', MARGIN + 4, cursorY + 5)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(...C.dark)
+  doc.text('• Contenido evaluado: Epístola a los Hebreos completa (Capítulos 1 al 13).', MARGIN + 4, cursorY + 9.5)
+  doc.text('• Asignación de preguntas: 45 preguntas por participante, seleccionadas y ordenadas de forma aleatoria con semilla única.', MARGIN + 4, cursorY + 13.5)
+  doc.text('• Preguntas de Selección Múltiple: Con 4 alternativas estructuradas. Corrección automática inmediata contra la clave oficial.', MARGIN + 4, cursorY + 17.5)
+  doc.text('• Preguntas de Respuesta Corta / Abierta: Evaluación doctrinal y narrativa con análisis semántico y supervisión evaluadora.', MARGIN + 4, cursorY + 21.5)
+
+  cursorY += 30
+
+  // Caja B: Criterio Equitativo de Clasificación (Sociedades con 12 vs 17 jóvenes)
+  roundedRect(doc, MARGIN, cursorY, CONTENT_W, 29, 2, [254, 250, 242])
+  doc.setDrawColor(235, 215, 180)
+  doc.setLineWidth(0.4)
+  doc.roundedRect(MARGIN, cursorY, CONTENT_W, 29, 2, 2, 'D')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(140, 80, 20)
+  doc.text('B. CRITERIO EQUITATIVO DE CLASIFICACIÓN DE SOCIEDADES (PUNTAJE PONDERADO):', MARGIN + 4, cursorY + 5)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(...C.dark)
+  doc.text('• Principio de Igualdad: No se suman simplemente los puntos brutos para no favorecer a sociedades más numerosas.', MARGIN + 4, cursorY + 9.5)
+  doc.text('• Efectividad Neta (%): (Total de Puntos Obtenidos / Total de Puntos Posibles de los que rindieron) × 100 - Penalizaciones.', MARGIN + 4, cursorY + 13.5)
+  doc.text('  Esto garantiza que una sociedad de 12 jóvenes compita en igualdad absoluta de condiciones con una de 17 o más jóvenes.', MARGIN + 4, cursorY + 17.5)
+  doc.text('• Promedio por Participante: (Suma de notas individuales / Cantidad de participantes). Mide el dominio promedio del equipo.', MARGIN + 4, cursorY + 21.5)
+  doc.text('• Censo Informativo: La asistencia oficial registra cuántos jóvenes del censo asistieron, sin penalizar a los presentes.', MARGIN + 4, cursorY + 25.5)
+
+  cursorY += 33
+
+  // Caja C: Auditoría Digital y Escala de Penalización Antifraude
+  roundedRect(doc, MARGIN, cursorY, CONTENT_W, 30, 2, [253, 246, 246])
+  doc.setDrawColor(240, 205, 205)
+  doc.setLineWidth(0.4)
+  doc.roundedRect(MARGIN, cursorY, CONTENT_W, 30, 2, 2, 'D')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(160, 40, 40)
+  doc.text('C. SUPERVISIÓN DIGITAL Y ESCALA OFICIAL DE PENALIZACIÓN DE SEGURIDAD:', MARGIN + 4, cursorY + 5)
 
   const disc = metricasGlobales.sociedadMasDisciplinada
-  const alertRec = metricasGlobales.sociedadConMasAlertas
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.8)
+  doc.setFontSize(7)
   doc.setTextColor(...C.dark)
-  const auditLine1 = `• Mención al Juego Limpio y Disciplina: ${disc ? `${disc.sociedad} (${disc.iglesia}) con ${disc.totalAlertas} alertas de seguridad registradas.` : 'Sin incidentes relevantes.'}`
-  const auditLine2 = `• Supervisión de Plataforma: Todas las sesiones contaron con monitoreo de cambio de pestañas, bloqueo de copiado y registro de tiempos en milisegundos.`
-  doc.text(auditLine1, MARGIN + 4, cursorY + 8.5)
-  doc.text(auditLine2, MARGIN + 4, cursorY + 12)
+  doc.text('• Eventos monitoreados: Cambios de pestaña/ventana, salida de pantalla completa, intento de copiar/pegar y desenfoque.', MARGIN + 4, cursorY + 9.5)
+  doc.text('• De 0 a 19 alertas acumuladas: Sin penalización (0% de descuento). Comportamiento dentro del margen regular.', MARGIN + 4, cursorY + 13.5)
+  doc.text('• De 20 a 29 alertas acumuladas: Penalización de -5% sobre la efectividad neta final de la sociedad.', MARGIN + 4, cursorY + 17.5)
+  doc.text('• De 30 a 39 alertas acumuladas: Penalización de -10% sobre la efectividad neta final de la sociedad.', MARGIN + 4, cursorY + 21.5)
+  doc.text('• 40 o más alertas acumuladas: Penalización de -15% sobre la efectividad neta final de la sociedad.', MARGIN + 4, cursorY + 25.5)
+  if (disc) {
+    doc.text(`• Mención Especial al Juego Limpio: Sociedad ${disc.sociedad} (${disc.iglesia}) con solo ${disc.totalAlertas} alertas registradas.`, MARGIN + 4, cursorY + 28.5)
+  }
 
-  cursorY += 19
+  cursorY += 34
 
-  // Párrafo de Certificación Oficial
+  // Caja D: Criterios de Desempate
+  roundedRect(doc, MARGIN, cursorY, CONTENT_W, 20, 2, [246, 252, 248])
+  doc.setDrawColor(200, 230, 210)
+  doc.setLineWidth(0.4)
+  doc.roundedRect(MARGIN, cursorY, CONTENT_W, 20, 2, 2, 'D')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(25, 110, 60)
+  doc.text('D. REGLAS OFICIALES DE DESEMPATE Y RECONOCIMIENTO INDIVIDUAL:', MARGIN + 4, cursorY + 5)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(...C.dark)
+  doc.text('• 1° Criterio de Desempate (Sociedades): Mayor promedio de puntuación por joven participante.', MARGIN + 4, cursorY + 9.5)
+  doc.text('• 2° Criterio de Desempate (Sociedades): Menor número total de alertas de seguridad registradas (Juego Limpio).', MARGIN + 4, cursorY + 13.5)
+  doc.text('• Desempate Individual (Top Jóvenes): Ante igual puntaje y efectividad, se prioriza el menor tiempo cronometrado de examen.', MARGIN + 4, cursorY + 17.5)
+
+  cursorY += 24
+
+  // Párrafo de Certificación y Cierre
   doc.setFont('helvetica', 'italic')
   doc.setFontSize(6.8)
   doc.setTextColor(...C.gray)
-  const certTexto = 'El presente informe ejecutivo certifica formalmente los resultados alcanzados en la 1ra Etapa de las Olimpiadas Bíblicas UJELADEA 2026. Los datos han sido auditados digitalmente y procesados con estricta sujeción al reglamento general.'
+  const certTexto = 'El presente informe oficial certifica los resultados alcanzados en la 1ra Etapa de las Olimpiadas Bíblicas UJELADEA 2026. Los datos han sido auditados digitalmente en base a las respuestas almacenadas y procesados con estricta sujeción a los criterios precedentes.'
   const certLines = doc.splitTextToSize(certTexto, CONTENT_W)
   doc.text(certLines, MARGIN, cursorY)
-
-  cursorY += certLines.length * 3.5 + 10
-
-  // ── LÍNEAS DE FIRMA OFICIAL ───────────────────────────────────────────────
-  const firmaW = (CONTENT_W - 16) / 3
-  const firmas = [
-    { cargo: 'Comisión Técnica y Evaluadora', institucion: 'UJELADEA 2026' },
-    { cargo: 'Pastor Asesor', institucion: 'Acompañamiento Espiritual' },
-    { cargo: 'Presidencia General', institucion: 'Directiva Central UJELADEA' }
-  ]
-
-  firmas.forEach((f, idx) => {
-    const x = MARGIN + idx * (firmaW + 8)
-    // Línea punteada/continua para firmar
-    doc.setDrawColor(...C.gray)
-    doc.setLineWidth(0.4)
-    doc.line(x, cursorY, x + firmaW, cursorY)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...C.dark)
-    textCentered(doc, f.cargo, x, cursorY + 4, firmaW)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.5)
-    doc.setTextColor(...C.gray)
-    textCentered(doc, f.institucion, x, cursorY + 7.5, firmaW)
-  })
 
   // ── NUMERACIÓN DE PÁGINAS Y PIE DE PÁGINA GLOBAL ──────────────────────────
   const totalPages = doc.internal.getNumberOfPages()
@@ -1131,4 +1180,8 @@ export const generarInformeEjecutivoDirectiva = async ({
   if (win) win.document.title = nombreArchivo
   else doc.save(nombreArchivo)
 }
+
+// Alias de compatibilidad
+export const generarInformeEjecutivoDirectiva = generarInformeOficialDirectiva
+
 
