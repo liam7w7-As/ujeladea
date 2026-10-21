@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "db:verify-backup": "node scripts/verify-hebreos-backup.mjs",
+    "db:migration:new": "supabase migration new",
+    "dev:demo": "node scripts/demo-local.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
@@ -20,6 +24,7 @@
     "react-router-dom": "^7.16.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.16",
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -28,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "supabase": "2.121.0",
     "vite": "^8.0.12"
   }
 }

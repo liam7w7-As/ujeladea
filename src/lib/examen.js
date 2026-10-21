@@ -67,14 +67,14 @@ export function calcularPuntajeAutomatico(pregunta, respuestaDada) {
         if (Array.isArray(rawOps)) {
           opciones = rawOps.map(op => (typeof op === 'object' && op !== null ? (op.texto || '') : String(op)).trim())
         }
-      } catch (e) {
+      } catch {
         opciones = []
       }
     }
 
     // 3. Caso: La respuesta_correcta guardada es una letra ("A", "B", "C", "D", "A)", "B.", etc.)
     //    y el usuario marcó el texto de la opción (ej: "Palabra de exhortación")
-    const letterRefMatch = refCorrecta.match(/^([A-Za-z])[\)\.\:\-]?$/)
+    const letterRefMatch = refCorrecta.match(/^([A-Za-z])[).:-]?$/)
     if (letterRefMatch && opciones.length > 0) {
       const letra = letterRefMatch[1].toUpperCase()
       const indiceLetra = letra.charCodeAt(0) - 65 // A=0, B=1, C=2, D=3...
@@ -91,7 +91,7 @@ export function calcularPuntajeAutomatico(pregunta, respuestaDada) {
     }
 
     // 4. Caso inverso: La respuesta del usuario es una letra y la respuesta_correcta es el texto
-    const letterUserMatch = respUsuario.match(/^([A-Za-z])[\)\.\:\-]?$/)
+    const letterUserMatch = respUsuario.match(/^([A-Za-z])[).:-]?$/)
     if (letterUserMatch && opciones.length > 0) {
       const letra = letterUserMatch[1].toUpperCase()
       const indiceLetra = letra.charCodeAt(0) - 65

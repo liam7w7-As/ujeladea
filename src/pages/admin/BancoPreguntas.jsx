@@ -1,262 +1,72 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Database, Download, Edit2, Plus, Search } from 'lucide-react'
+import { useEtapa } from '../../context/etapa-context'
+import { etiquetaEtapa, leerTodas } from '../../lib/etapas'
 import { supabase } from '../../lib/supabase'
-import { generarReportePDF } from '../../lib/pdf'
-import { ArrowLeft, Plus, Edit2, Trash2, Search, Filter, Database, Check, X, Download } from 'lucide-react'
-import Modal from '../../components/Modal'
 import NavAdmin from '../../components/NavAdmin'
-import EstadoBadge from '../../components/EstadoBadge'
+import EtapaAviso from '../../components/EtapaAviso'
 
 export default function BancoPreguntas() {
-  const navigate = useNavigate()
-  
-  const [preguntas, setPreguntas] = useState([])
-  const [cargando, setCargando] = useState(true)
+  const { etapa, archivo, soloLectura } = useEtapa()
+  const [preguntas, setPreguntas] = useState(null)
   const [error, setError] = useState('')
-  const [modal, setModal] = useState({ isOpen: false, titulo: '', mensaje: '', tipo: 'info', onConfirm: null, isConfirm: false })
-  
-  // Filtros
   const [busqueda, setBusqueda] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('todas')
+  const [tipo, setTipo] = useState('todas')
   const [filtroEstado, setFiltroEstado] = useState('todas')
-
+  const [ocupada, setOcupada] = useState('')
   useEffect(() => {
-    cargarPreguntas()
-  }, [])
-
-  const cargarPreguntas = async () => {
+    let vigente = true
+    const promesa = soloLectura ? Promise.resolve(archivo.preguntas) : leerTodas(() => supabase.from('preguntas').select('*').eq('etapa_id', etapa.id))
+    promesa.then(data => { if (vigente) setPreguntas(data) }).catch(err => { if (vigente) setError(err.message) })
+    return () => { vigente = false }
+  }, [etapa, archivo, soloLectura])
+  const filtradas = (preguntas || []).filter(p => p.texto.toLowerCase().includes(busqueda.toLowerCase()) && (tipo === 'todas' || p.tipo === tipo) && (filtroEstado === 'todas' || Boolean(p.activa) === (filtroEstado === 'activas')))
+  async function cambiarActiva(pregunta) {
+    if (soloLectura || ocupada) return
+    setOcupada(pregunta.id)
+    setError('')
     try {
-      setCargando(true)
-      const { data, error } = await supabase
-        .from('preguntas')
-        .select('*')
-        .order('id', { ascending: false })
-
+      const { error } = await supabase.from('preguntas').update({ activa: !pregunta.activa }).eq('id', pregunta.id).eq('etapa_id', etapa.id).select('id').single()
       if (error) throw error
-      setPreguntas(data)
-    } catch (err) {
-      setError('Error al cargar el banco de preguntas')
-    } finally {
-      setCargando(false)
-    }
+      setPreguntas(prev => prev.map(p => p.id === pregunta.id ? { ...p, activa: !p.activa } : p))
+    } catch (err) { setError(err.message) }
+    finally { setOcupada('') }
   }
-
-  const handleToggleActiva = async (id, estadoActual) => {
+  async function exportar() {
     try {
-      const { error } = await supabase
-        .from('preguntas')
-        .update({ activa: !estadoActual })
-        .eq('id', id)
-
-      if (error) throw error
-      setPreguntas(preguntas.map(p => p.id === id ? { ...p, activa: !estadoActual } : p))
-    } catch (err) {
-      setModal({ isOpen: true, titulo: 'Error', mensaje: 'Error al actualizar el estado', tipo: 'error', isConfirm: false })
-    }
+      const { generarReportePDF } = await import('../../lib/pdf')
+      await generarReportePDF({
+        etapa, titulo: 'Banco de preguntas', subtitulo: etiquetaEtapa(etapa),
+        columnas: ['Pregunta', 'Tipo', 'Estado', 'Puntaje', 'Respuesta de referencia'],
+        filas: filtradas.map(p => [p.texto, p.tipo, p.activa ? 'Activa' : 'Inactiva', String(p.puntaje), p.respuesta_correcta || '']),
+        nombreArchivo: `Banco_${etapa.codigo}.pdf`,
+      })
+    } catch (err) { setError('No se pudo exportar: ' + err.message) }
   }
-
-  const pedirEliminar = (id) => {
-    setModal({
-      isOpen: true,
-      titulo: 'Eliminar Pregunta',
-      mensaje: '¿Estás seguro de eliminar esta pregunta? Esta acción no se puede deshacer.',
-      tipo: 'warning',
-      isConfirm: true,
-      onConfirm: () => {
-        setModal(prev => ({ ...prev, isOpen: false }))
-        handleEliminarReal(id)
-      }
-    })
-  }
-
-  const handleEliminarReal = async (id) => {
-    try {
-      const { error } = await supabase
-        .from('preguntas')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      setPreguntas(preguntas.filter(p => p.id !== id))
-    } catch (err) {
-      const msg = err?.code === '23503' || err?.message?.includes('foreign key') || err?.message?.includes('Conflict') 
-        ? 'No puedes eliminar esta pregunta porque ya ha sido usada en exámenes y tiene respuestas guardadas. Te recomendamos simplemente "Desactivarla" para que no aparezca en futuros exámenes.'
-        : 'Error al eliminar la pregunta: ' + err.message;
-        
-      setModal({ isOpen: true, titulo: 'No se puede eliminar', mensaje: msg, tipo: 'warning', isConfirm: false })
-    }
-  }
-
-  // Filtrado
-  const preguntasFiltradas = preguntas.filter(p => {
-    const cumpleBusqueda = p.texto.toLowerCase().includes(busqueda.toLowerCase())
-    const cumpleTipo = filtroTipo === 'todas' || p.tipo === filtroTipo
-    const cumpleEstado = filtroEstado === 'todas' || 
-                         (filtroEstado === 'activas' && p.activa) || 
-                         (filtroEstado === 'inactivas' && !p.activa)
-    
-    return cumpleBusqueda && cumpleTipo && cumpleEstado
-  })
-
-  const cantActivas = preguntas.filter(p => p.activa).length
-
-  const getTipoBadge = (tipo) => {
-    switch (tipo) {
-      case 'multiple': return <span style={{ color: '#2e86c1', background: 'rgba(46,134,193,0.1)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>Múltiple</span>
-      case 'abierta': return <span style={{ color: '#d4a017', background: 'rgba(212,160,23,0.1)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>Abierta</span>
-      case 'contexto': return <span style={{ color: '#8e44ad', background: 'rgba(142,68,173,0.1)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>Contexto</span>
-      default: return null
-    }
-  }
-
-  const exportarPDF = () => {
-    if (preguntasFiltradas.length === 0) return
-
-    const columnas = ['ID', 'Pregunta', 'Tipo', 'Estado', 'Puntaje', 'Respuesta Correcta']
-    const filas = preguntasFiltradas.map(p => [
-      p.id.toString(),
-      p.texto,
-      p.tipo,
-      p.activa ? 'Activa' : 'Inactiva',
-      p.puntaje.toString(),
-      p.respuesta_correcta || 'N/A'
-    ])
-
-    let subtitulo = `Mostrando ${preguntasFiltradas.length} preguntas`
-    if (filtroTipo !== 'todas') subtitulo += ` | Tipo: ${filtroTipo}`
-    if (filtroEstado !== 'todas') subtitulo += ` | Estado: ${filtroEstado}`
-    if (busqueda) subtitulo += ` | Búsqueda: "${busqueda}"`
-
-    generarReportePDF({
-      titulo: 'Banco de Preguntas Oficial',
-      subtitulo: subtitulo,
-      columnas,
-      filas,
-      nombreArchivo: 'Banco_Preguntas_UJELADEA.pdf'
-    })
-  }
-
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <NavAdmin />
-      <div className="page-wrapper" style={{ padding: 'var(--space-xl)', flex: 1, alignItems: 'flex-start' }}>
-        <div className="page-content animate-in" style={{ maxWidth: '1000px', width: '100%', margin: '0 auto' }}>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2xl)', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
-            <div>
-              <h1 className="brand-title" style={{ fontSize: '2rem', marginBottom: 'var(--space-xs)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Database color="var(--color-accent)" size={32} />
-                Banco de Preguntas
-              </h1>
-              <p style={{ color: 'var(--color-text-muted)' }}>Gestiona las preguntas del torneo</p>
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-              <button onClick={exportarPDF} className="btn btn-secondary" style={{ width: 'auto' }}>
-                <Download size={18} />
-                <span className="hide-mobile">Exportar PDF</span>
-              </button>
-              <button onClick={() => navigate('/admin/preguntas/nueva')} className="btn btn-primary" style={{ width: 'auto' }}>
-                <Plus size={18} />
-                <span className="hide-mobile">Nueva Pregunta</span>
-              </button>
-            </div>
-          </div> {error && <div className="alert alert-error">{error}</div>}
-
-        <div className="card" style={{ marginBottom: 'var(--space-lg)', padding: 'var(--space-md)' }}>
-          <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: '1 1 250px', margin: 0, position: 'relative' }}>
-              <Search size={16} style={{ position: 'absolute', top: '15px', left: '12px', color: 'var(--color-text-muted)' }} />
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Buscar en el texto..."
-                value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                style={{ paddingLeft: '35px' }}
-              />
-            </div>
-            <div className="form-group" style={{ flex: '1 1 150px', margin: 0 }}>
-              <select className="form-input" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
-                <option value="todas">Todos los tipos</option>
-                <option value="multiple">Múltiple</option>
-                <option value="abierta">Abierta</option>
-                <option value="contexto">Contexto</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: '1 1 150px', margin: 0 }}>
-              <select className="form-input" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-                <option value="todas">Todos los estados</option>
-                <option value="activas">Activas</option>
-                <option value="inactivas">Inactivas</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-          {cargando ? (
-            <div style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}><div className="spinner" style={{ margin: '0 auto' }}/></div>
-          ) : preguntasFiltradas.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
-              <Database size={48} color="var(--color-text-muted)" style={{ margin: '0 auto var(--space-md)' }} />
-              <h3>No se encontraron preguntas</h3>
-              <p style={{ color: 'var(--color-text-muted)' }}>Intenta ajustar tus filtros o crea una nueva.</p>
-            </div>
-          ) : (
-            preguntasFiltradas.map(p => (
-              <div key={p.id} className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-md)', opacity: p.activa ? 1 : 0.6 }}>
-                
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: '4px' }}>
-                    {getTipoBadge(p.tipo)}
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{p.puntaje} pts</span>
-                  </div>
-                  <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '1rem', color: 'var(--color-text-primary)' }}>
-                    {p.texto}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                  <button 
-                    onClick={() => handleToggleActiva(p.id, p.activa)}
-                    title={p.activa ? "Desactivar" : "Activar"}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: p.activa ? 'var(--color-success)' : 'var(--color-text-muted)' }}
-                  >
-                    {p.activa ? <Check size={20} /> : <X size={20} />}
-                  </button>
-                  <div style={{ width: '1px', height: '24px', background: 'var(--color-border)', margin: '0 4px' }} />
-                  <button 
-                    onClick={() => navigate(`/admin/preguntas/${p.id}/editar`)}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px', minWidth: 'auto', border: 'none' }}
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button 
-                    onClick={() => pedirEliminar(p.id)}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px', minWidth: 'auto', border: 'none', color: 'var(--color-error)' }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        </div>
-      </div>
-      
-      <Modal 
-        isOpen={modal.isOpen} 
-        onClose={() => setModal(prev => ({ ...prev, isOpen: false }))} 
-        onConfirm={modal.onConfirm}
-        titulo={modal.titulo} 
-        mensaje={modal.mensaje} 
-        tipo={modal.tipo}
-        isConfirm={modal.isConfirm}
-      />
+  return <><NavAdmin /><main className="admin-content">
+    <EtapaAviso />
+    <div className="etapa-heading"><div><p className="eyebrow">{etapa.libro}</p><h1>Banco de preguntas</h1><p className="etapa-help">{preguntas?.filter(p => p.activa).length || 0} activas · {preguntas?.length || 0} en total</p></div><div className="etapa-actions"><button className="btn btn-secondary" onClick={exportar} disabled={!filtradas.length}><Download size={17} />Exportar PDF</button>{!soloLectura && <Link className="btn btn-primary" to="/admin/preguntas/nueva"><Plus size={17} />Nueva pregunta</Link>}</div></div>
+    {!soloLectura && <section className="card banco-preparacion" aria-label="Preparación del banco pastoral">
+      <h2>Base para las preguntas de {etapa.libro}</h2>
+      <p>Incorpora aquí las preguntas revisadas por los pastores. Cada una necesita un enunciado claro, su respuesta de referencia y un puntaje.</p>
+      <dl>
+        <div><dt>Opción múltiple</dt><dd>Al menos dos opciones distintas y una respuesta correcta. Se corrige automáticamente con la referencia guardada.</dd></div>
+        <div><dt>Respuesta abierta</dt><dd>Respuesta esperada, pasaje de apoyo y criterios para otorgar puntos parciales. El jurado asigna la nota.</dd></div>
+        <div><dt>Contexto bíblico</dt><dd>Pasaje o situación que se analizará y una referencia que explique los elementos esperados. El jurado revisa la respuesta.</dd></div>
+      </dl>
+      <p className="etapa-help">Acuerden la versión bíblica y la distribución de puntos antes de activar la etapa. Solo las preguntas activas se asignan al iniciar un intento.</p>
+    </section>}
+    {error && <p className="alert alert-error" role="alert">{error}</p>}
+    <div className="etapa-filters">
+      <label><span className="form-label"><Search size={15} />Buscar pregunta</span><input className="form-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Escribe una palabra…" /></label>
+      <label><span className="form-label">Tipo</span><select className="form-input" value={tipo} onChange={e => setTipo(e.target.value)}><option value="todas">Todos</option><option value="multiple">Opción múltiple</option><option value="abierta">Respuesta abierta</option><option value="contexto">Contexto bíblico</option></select></label>
+      <label><span className="form-label">Estado</span><select className="form-input" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}><option value="todas">Todos</option><option value="activas">Activas</option><option value="inactivas">Inactivas</option></select></label>
     </div>
-  )
+    {!preguntas && !error ? <p role="status">Cargando preguntas…</p> : filtradas.length === 0 ? <section className="card etapa-empty"><Database size={40} /><h2>{preguntas?.length ? 'Sin coincidencias' : `Prepara el banco de ${etapa.libro}`}</h2><p>{preguntas?.length ? 'Prueba con otros filtros.' : 'Añade las preguntas revisadas para esta etapa. Las de Hebreos se conservan en su historial.'}</p></section> :
+      <div className="etapa-session-list">{filtradas.map(p => <article className="card etapa-question" key={p.id}>
+        <div className="etapa-heading"><p className="eyebrow">{p.tipo} · {p.puntaje} pts · {p.activa ? 'Activa' : 'Inactiva'}</p>{!soloLectura && <div className="etapa-actions"><button className="btn btn-secondary" disabled={Boolean(ocupada)} onClick={() => cambiarActiva(p)}>{p.activa ? 'Desactivar' : 'Activar'}</button><Link className="btn btn-secondary" to={`/admin/preguntas/${p.id}/editar`}><Edit2 size={15} />Editar</Link></div>}</div>
+        <h2>{p.texto}</h2><details><summary>Ver opciones y respuesta de referencia</summary>{p.opciones && <ul>{(typeof p.opciones === 'string' ? JSON.parse(p.opciones) : p.opciones).map((o, i) => <li key={i}>{typeof o === 'string' ? o : o.texto}</li>)}</ul>}<p>{p.respuesta_correcta || 'Sin referencia'}</p></details>
+      </article>)}</div>}
+  </main></>
 }

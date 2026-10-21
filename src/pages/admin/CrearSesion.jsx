@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ArrowLeft, Search, Plus, Trash2, CheckCircle2, AlertTriangle, Users } from 'lucide-react'
+import { useEtapa } from '../../context/etapa-context'
+import EtapaAviso from '../../components/EtapaAviso'
+import { ArrowLeft, Search, Plus, Trash2, AlertTriangle } from 'lucide-react'
 
 export default function CrearSesion() {
   const navigate = useNavigate()
+  const { etapa } = useEtapa()
   const [paso, setPaso] = useState(1)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
@@ -23,20 +26,21 @@ export default function CrearSesion() {
   const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
 
   // Configuración de examen
-  const [configuracion, setConfiguracion] = useState({ tiempo_limite: 60, cant_preguntas: 45 })
+  const configuracion = { tiempo_limite: etapa.tiempo_limite, cant_preguntas: etapa.cantidad_preguntas }
 
   useEffect(() => {
-    cargarSociedades()
+    let vigente = true
+    supabase.from('sociedades').select('*').eq('activa', true).order('nombre').then(({ data, error }) => {
+      if (!vigente) return
+      if (error) setError('No se pudo cargar el catálogo de sociedades.')
+      else setSociedades(data || [])
+    })
+    return () => { vigente = false }
   }, [])
-
-  const cargarSociedades = async () => {
-    const { data, error } = await supabase.from('sociedades').select('*').order('nombre')
-    if (!error && data) setSociedades(data)
-  }
 
   const sociedadesFiltradas = sociedades.filter(s => 
     s.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    s.iglesia.toLowerCase().includes(busqueda.toLowerCase())
+    (s.iglesia || '').toLowerCase().includes(busqueda.toLowerCase())
   )
 
   const handleCrearSociedad = async (e) => {
@@ -86,39 +90,15 @@ export default function CrearSesion() {
     setCargando(true)
     
     try {
-      // 1. Crear sesión
-      const { data: sesionData, error: sesionError } = await supabase
-        .from('sesiones')
-        .insert([{
-          sociedad_id: sociedadSeleccionada.id,
-          estado: 'esperando',
-          tiempo_limite: configuracion.tiempo_limite,
-          cantidad_preguntas: configuracion.cant_preguntas
-        }])
-        .select()
-        .single()
-
+      const { data: sesionData, error: sesionError } = await supabase.rpc('admin_examen_crear_sesion', {
+        p_etapa: etapa.id,
+        p_sociedad: sociedadSeleccionada.id,
+        p_participantes: participantes.map(p => ({ nombre: p.nombre, del_censo: p.del_censo })),
+      })
       if (sesionError) throw sesionError
 
-      // 2. Crear participantes
-      if (participantes.length > 0) {
-        const participantesInsert = participantes.map(p => ({
-          sesion_id: sesionData.id,
-          nombre: p.nombre,
-          del_censo: p.del_censo,
-          examen_finalizado: false,
-          puntaje_total: 0
-        }))
-
-        const { error: partError } = await supabase
-          .from('participantes')
-          .insert(participantesInsert)
-
-        if (partError) throw partError
-      }
-
       // 3. Redirigir a sala de espera
-      navigate(`/admin/sesion/${sesionData.id}/espera`)
+      navigate(`/admin/sesion/${sesionData.sesion_id}/espera`)
       
     } catch (err) {
       setError(err.message || 'Error al generar la sesión completa')
@@ -137,6 +117,7 @@ export default function CrearSesion() {
           <h1 className="brand-title" style={{ fontSize: '1.5rem', marginBottom: 0 }}>Nueva Sesión</h1>
         </div>
 
+        <EtapaAviso />
         {/* Indicador de pasos */}
         <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-xl)' }}>
           {[1, 2, 3].map(i => (
@@ -276,7 +257,7 @@ export default function CrearSesion() {
                   />
                   Es del censo
                 </label>
-                <button type="submit" className="btn btn-primary" style={{ padding: '0 1rem', width: 'auto' }}>
+                <button type="submit" aria-label="Agregar participante" className="btn btn-primary" style={{ padding: '0 1rem', width: 'auto' }}>
                   <Plus size={18} />
                 </button>
               </form>
@@ -284,7 +265,7 @@ export default function CrearSesion() {
               {participantesDelCenso < sociedadSeleccionada?.total_censo && (
                 <div className="alert" style={{ background: 'rgba(212, 160, 23, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(212, 160, 23, 0.2)' }}>
                   <AlertTriangle size={16} />
-                  <span>Faltan {sociedadSeleccionada?.total_censo - participantesDelCenso} jóvenes del censo (afectará el puntaje final).</span>
+                  <span>Faltan {sociedadSeleccionada?.total_censo - participantesDelCenso} jóvenes del censo (dato informativo).</span>
                 </div>
               )}
 
@@ -325,41 +306,8 @@ export default function CrearSesion() {
                 <span style={{ color: 'var(--color-accent)' }}>3.</span> Configuración de Examen
               </h2>
 
-              <div className="form-group">
-                <label className="form-label">Tiempo límite (minutos)</label>
-                <select 
-                  className="form-input" 
-                  value={configuracion.tiempo_limite}
-                  onChange={e => setConfiguracion({...configuracion, tiempo_limite: parseInt(e.target.value)})}
-                >
-                  <option value="30">30 minutos</option>
-                  <option value="45">45 minutos</option>
-                  <option value="60">60 minutos</option>
-                  <option value="90">90 minutos</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Cantidad de preguntas por joven</label>
-                <select 
-                  className="form-input" 
-                  value={configuracion.cant_preguntas}
-                  onChange={e => setConfiguracion({...configuracion, cant_preguntas: parseInt(e.target.value)})}
-                >
-                  <option value="10">10 preguntas</option>
-                  <option value="15">15 preguntas</option>
-                  <option value="20">20 preguntas</option>
-                  <option value="25">25 preguntas</option>
-                  <option value="30">30 preguntas</option>
-                  <option value="35">35 preguntas</option>
-                  <option value="40">40 preguntas</option>
-                  <option value="45">45 preguntas</option>
-                  <option value="50">50 preguntas</option>
-                </select>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                  Cada joven recibirá esta cantidad de preguntas seleccionadas aleatoriamente del banco general.
-                </p>
-              </div>
+              <dl className="etapa-stats"><div><dt>Duración de la etapa</dt><dd>{configuracion.tiempo_limite} min</dd></div><div><dt>Preguntas por joven</dt><dd>{configuracion.cant_preguntas}</dd></div></dl>
+              <p className="etapa-help">Estos valores se definen en la configuración de la etapa.</p>
 
               <div className="divider" />
 

@@ -1,4 +1,4 @@
-import { BookOpen, Construction, ArrowLeft } from 'lucide-react'
+import { Construction, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function PlaceholderPage({ title, description, backTo, backLabel }) {

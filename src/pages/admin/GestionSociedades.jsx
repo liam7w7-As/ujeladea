@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Edit2, Trash2, Search, Building2, Check, X, Users, MapPin } from 'lucide-react'
 import Modal from '../../components/Modal'
 import NavAdmin from '../../components/NavAdmin'
 
 export default function GestionSociedades() {
-  const navigate = useNavigate()
   
   const [sociedades, setSociedades] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -22,26 +20,16 @@ export default function GestionSociedades() {
   const [form, setForm] = useState({ nombre: '', iglesia: '', total_censo: '' })
   const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    cargarSociedades()
+  const cargarSociedades = useCallback(() => {
+    return supabase.from('sociedades').select('*').order('nombre').then(({ data, error }) => {
+      if (error) { setError('Error al cargar las sociedades'); setCargando(false); return }
+      setSociedades(data)
+      setError('')
+      setCargando(false)
+    }).catch(() => { setError('Error al cargar las sociedades'); setCargando(false) })
   }, [])
 
-  const cargarSociedades = async () => {
-    try {
-      setCargando(true)
-      const { data, error } = await supabase
-        .from('sociedades')
-        .select('*')
-        .order('nombre')
-
-      if (error) throw error
-      setSociedades(data)
-    } catch (err) {
-      setError('Error al cargar las sociedades')
-    } finally {
-      setCargando(false)
-    }
-  }
+  useEffect(() => { void cargarSociedades() }, [cargarSociedades])
 
   const handleToggleActiva = async (id, estadoActual) => {
     try {

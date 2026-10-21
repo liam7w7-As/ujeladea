@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useEtapa } from '../../context/etapa-context'
+import EtapaAviso from '../../components/EtapaAviso'
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
 
 export default function FormPregunta() {
   const { id } = useParams()
+  const { etapa } = useEtapa()
   const navigate = useNavigate()
   
-  const [cargando, setCargando] = useState(false)
+  const [cargando, setCargando] = useState(Boolean(id))
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [preguntaCargada, setPreguntaCargada] = useState(!id)
 
   // Form State
   const [tipo, setTipo] = useState('multiple')
@@ -27,21 +31,18 @@ export default function FormPregunta() {
   ])
 
   useEffect(() => {
-    if (id) {
-      cargarPregunta()
-    }
-  }, [id])
-
-  const cargarPregunta = async () => {
+    let vigente = true
+    async function cargarPregunta() {
     try {
-      setCargando(true)
       const { data, error } = await supabase
         .from('preguntas')
         .select('*')
         .eq('id', id)
+        .eq('etapa_id', etapa.id)
         .single()
 
       if (error) throw error
+      if (!vigente) return
 
       setTipo(data.tipo)
       setTexto(data.texto)
@@ -62,7 +63,7 @@ export default function FormPregunta() {
           setOpciones(mapped)
 
           // Si respuesta_correcta era una letra (ej: 'B'), resolver al texto correspondiente
-          const letterMatch = resCorrecta.trim().match(/^([A-Za-z])[\)\.\:\-]?$/)
+          const letterMatch = resCorrecta.trim().match(/^([A-Za-z])[).:-]?$/)
           if (letterMatch) {
             const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65
             if (idx >= 0 && idx < mapped.length && mapped[idx]?.texto) {
@@ -73,17 +74,21 @@ export default function FormPregunta() {
       }
 
       setRespuestaCorrecta(resCorrecta)
+      setPreguntaCargada(true)
     } catch (err) {
-      setError('Error al cargar la pregunta: ' + err.message)
+      if (vigente) setError('Error al cargar la pregunta: ' + err.message)
     } finally {
-      setCargando(false)
+      if (vigente) setCargando(false)
     }
   }
 
+    if (id) void cargarPregunta()
+    return () => { vigente = false }
+  }, [id, etapa.id])
+
   const handleOpcionChange = (index, nuevoTexto) => {
     const textoAntiguo = opciones[index].texto
-    const nuevas = [...opciones]
-    nuevas[index].texto = nuevoTexto
+    const nuevas = opciones.map((opcion, i) => i === index ? { ...opcion, texto: nuevoTexto } : opcion)
     setOpciones(nuevas)
 
     // Si la opción que se modificó era la respuesta correcta, actualizar también respuestaCorrecta
@@ -94,6 +99,7 @@ export default function FormPregunta() {
 
   const handleGuardar = async (e) => {
     e.preventDefault()
+    if (!preguntaCargada) return
     setError('')
     setExito('')
     setCargando(true)
@@ -101,6 +107,12 @@ export default function FormPregunta() {
     // Validaciones
     if (!texto.trim() || !respuestaCorrecta.trim()) {
       setError('El texto de la pregunta y la respuesta correcta son obligatorios.')
+      setCargando(false)
+      return
+    }
+
+    if (!Number.isInteger(Number(puntaje)) || Number(puntaje) < 1) {
+      setError('El puntaje debe ser un número entero positivo.')
       setCargando(false)
       return
     }
@@ -118,17 +130,23 @@ export default function FormPregunta() {
       opcionesFinales = opcionesValidas.map(o => o.texto.trim())
 
       // Verificar si respuestaFinal es una letra y resolverla
-      const letterMatch = respuestaFinal.match(/^([A-Za-z])[\)\.\:\-]?$/)
+      const letterMatch = respuestaFinal.match(/^([A-Za-z])[).:-]?$/)
       if (letterMatch) {
         const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65
         if (idx >= 0 && idx < opcionesFinales.length) {
           respuestaFinal = opcionesFinales[idx]
         }
       }
+      if (!opcionesFinales.includes(respuestaFinal)) {
+        setError('Selecciona una respuesta correcta entre las opciones actuales.')
+        setCargando(false)
+        return
+      }
     }
 
     try {
       const payload = {
+        etapa_id: etapa.id,
         tipo,
         texto: texto.trim(),
         puntaje: parseInt(puntaje),
@@ -143,6 +161,8 @@ export default function FormPregunta() {
           .from('preguntas')
           .update(payload)
           .eq('id', id)
+          .eq('etapa_id', etapa.id)
+          .select('id').single()
         if (errUpdate) throw errUpdate
         setExito('Pregunta actualizada correctamente')
       } else {
@@ -154,9 +174,7 @@ export default function FormPregunta() {
         setExito('Pregunta creada correctamente')
         
         // Limpiar form si es nueva
-        setTimeout(() => {
-          navigate('/admin/preguntas')
-        }, 1500)
+        navigate('/admin/preguntas')
       }
 
     } catch (err) {
@@ -181,6 +199,7 @@ export default function FormPregunta() {
           </div>
         </div>
 
+        <EtapaAviso />
         {error && <div className="alert alert-error"><AlertCircle size={16} /><span>{error}</span></div>}
         {exito && <div className="alert alert-success"><span>{exito}</span></div>}
 
@@ -309,7 +328,7 @@ export default function FormPregunta() {
 
           <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
             <button type="button" onClick={() => navigate('/admin/preguntas')} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
-            <button type="submit" disabled={cargando} className="btn btn-primary" style={{ flex: 2 }}>
+            <button type="submit" disabled={cargando || !preguntaCargada} className="btn btn-primary" style={{ flex: 2 }}>
               {cargando ? <span className="spinner" /> : <Save size={18} />}
               {cargando ? 'Guardando...' : 'Guardar Pregunta'}
             </button>

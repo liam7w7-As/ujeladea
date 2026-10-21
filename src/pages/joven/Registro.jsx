@@ -1,188 +1,50 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { UserCheck, AlertCircle, ArrowRight } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowRight, UserCheck } from 'lucide-react'
+import { apiExamen } from '../../lib/participante-supabase'
+import { rutaIntento } from '../../lib/estado-examen'
+import EstadoParticipante from '../../components/EstadoParticipante'
 
 export default function Registro() {
   const { sesionId } = useParams()
   const navigate = useNavigate()
-  
-  const [sesion, setSesion] = useState(null)
-  const [participantes, setParticipantes] = useState([])
-  const [participanteSeleccionado, setParticipanteSeleccionado] = useState(null)
-  const [cargando, setCargando] = useState(true)
-  const [procesando, setProcesando] = useState(false)
+  const [sala, setSala] = useState(null)
+  const [seleccion, setSeleccion] = useState('')
   const [error, setError] = useState('')
-
+  const [procesando, setProcesando] = useState(false)
+  const [codigo, setCodigo] = useState('')
+  const [revision, setRevision] = useState(0)
+  const recargar = useCallback(() => setRevision(v => v + 1), [])
   useEffect(() => {
-    // Si ya tiene un participante guardado y es de esta sesión, redirigir directo
-    const guardado = localStorage.getItem(`torneo_participante_${sesionId}`)
-    if (guardado) {
-      navigate(`/examen/${sesionId}/espera`)
-      return
-    }
-
-    cargarDatos()
-  }, [sesionId, navigate])
-
-  const cargarDatos = async () => {
-    try {
-      setCargando(true)
-      const { data: dataSesion, error: errSesion } = await supabase
-        .from('sesiones')
-        .select('*, sociedades(nombre)')
-        .eq('id', sesionId)
-        .single()
-
-      if (errSesion) throw errSesion
-      setSesion(dataSesion)
-
-      // Cargar solo participantes que NO tienen seed asignado aún
-      const { data: dataPart, error: errPart } = await supabase
-        .from('participantes')
-        .select('id, nombre')
-        .eq('sesion_id', sesionId)
-        .is('seed', null)
-        .order('nombre')
-
-      if (errPart) throw errPart
-      setParticipantes(dataPart)
-    } catch (err) {
-      setError('No se pudo cargar la información de la sesión. Revisa tu conexión.')
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  const handleConfirmar = async () => {
-    if (!participanteSeleccionado) return
-
+    let vigente = true
+    apiExamen.sala(sesionId).then(async datos => {
+      if (!vigente) return
+      if (datos.intento_id) {
+        const estado = await apiExamen.estado(datos.intento_id)
+        if (vigente) navigate(rutaIntento(sesionId, estado.intento.estado), { replace: true })
+      } else { setSala(datos); setError('') }
+    }).catch(err => { if (vigente) setError(err.message) })
+    return () => { vigente = false }
+  }, [sesionId, navigate, revision])
+  async function confirmar(recuperar = false) {
+    if (procesando || (!recuperar && !seleccion)) return
     setProcesando(true)
     setError('')
-    
     try {
-      // Generar seed aleatorio de 6 a 9 dígitos
-      const nuevoSeed = Math.floor(Math.random() * 900000000) + 100000
-
-      // Actualizar en Supabase
-      const { error: errUpdate } = await supabase
-        .from('participantes')
-        .update({ 
-          seed: nuevoSeed.toString(),
-          registrado_at: new Date().toISOString()
-        })
-        .eq('id', participanteSeleccionado.id)
-        .is('seed', null) // asegurar que nadie más lo tomó al mismo tiempo
-
-      if (errUpdate) throw errUpdate
-
-      // Guardar en localStorage
-      localStorage.setItem(`torneo_participante_${sesionId}`, participanteSeleccionado.id)
-      
-      // Ir a la sala de espera
-      navigate(`/examen/${sesionId}/espera`)
-
-    } catch (err) {
-      setError('Hubo un error al registrarte o alguien más ya seleccionó este nombre. Intenta de nuevo.')
-      cargarDatos() // recargar la lista
-    } finally {
-      setProcesando(false)
-    }
+      const estado = recuperar ? await apiExamen.recuperar(sesionId, codigo) : await apiExamen.registrar(sesionId, seleccion)
+      navigate(rutaIntento(sesionId, estado.intento.estado), { replace: true })
+    } catch (err) { setError(err.message); recargar() }
+    finally { setProcesando(false) }
   }
-
-  if (cargando) return <div className="page-wrapper"><div className="spinner" /></div>
-  
-  if (sesion?.estado === 'finalizado') {
-    return (
-      <div className="page-wrapper">
-        <div className="card" style={{ textAlign: 'center' }}>
-          <AlertCircle size={48} color="var(--color-warning)" style={{ margin: '0 auto var(--space-md)' }} />
-          <h3>Sesión Finalizada</h3>
-          <p style={{ color: 'var(--color-text-muted)' }}>El examen para {sesion.sociedades?.nombre} ya ha concluido.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="page-wrapper" style={{ padding: 'var(--space-md)' }}>
-      <div className="page-content animate-in">
-        
-        <div className="brand-header">
-          <div className="brand-icon" style={{ background: 'transparent', boxShadow: 'none' }}>
-            <img src="/logo.png" alt="Torneo Bíblico Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--color-accent)', boxShadow: 'var(--shadow-glow)' }} />
-          </div>
-          <h1 className="brand-title">Olimpiadas Bíblicas</h1>
-          <p style={{ color: 'var(--color-accent)', fontSize: '0.95rem', marginTop: '-8px', fontWeight: 600 }}>UJELADEA 2026 — 1ra Etapa HEBREOS</p>
-          <p className="brand-subtitle">{sesion?.sociedades?.nombre}</p>
-        </div>
-
-        <div className="card">
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 'var(--space-md)', textAlign: 'center' }}>Selecciona tu nombre</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
-            Toca tu nombre en la lista para registrar tu dispositivo en el examen.
-          </p>
-
-          {error && (
-            <div className="alert alert-error">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: 'var(--space-xl)', paddingRight: '4px' }}>
-            {participantes.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 'var(--space-lg)', color: 'var(--color-text-muted)' }}>
-                Todos los participantes ya han sido registrados.
-              </div>
-            ) : (
-              participantes.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setParticipanteSeleccionado(p)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '16px',
-                    width: '100%',
-                    background: participanteSeleccionado?.id === p.id ? 'var(--color-bg-hover)' : 'var(--color-bg-base)',
-                    border: `1px solid ${participanteSeleccionado?.id === p.id ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--color-text-primary)',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{p.nombre}</span>
-                  {participanteSeleccionado?.id === p.id && <UserCheck size={20} color="var(--color-accent)" />}
-                </button>
-              ))
-            )}
-          </div>
-
-          <button
-            onClick={handleConfirmar}
-            disabled={!participanteSeleccionado || procesando}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '1rem', fontSize: '1.05rem' }}
-          >
-            {procesando ? (
-              <>
-                <span className="spinner" /> Procesando...
-              </>
-            ) : (
-              <>
-                Soy yo, confirmar <ArrowRight size={20} />
-              </>
-            )}
-          </button>
-        </div>
-
-      </div>
-    </div>
-  )
+  if (!sala) return <EstadoParticipante cargando={!error} error={error} recargar={recargar} />
+  return <main className="page-wrapper"><div className="page-content">
+    <header className="brand-header"><img src="/logo.png" alt="UJELADEA" className="joven-logo" /><h1 className="brand-title">Olimpiadas Bíblicas</h1><p className="joven-libro">{sala.etapa.nombre} · {sala.etapa.libro} · {sala.etapa.anio}</p><p className="brand-subtitle">{sala.sesion.sociedad}</p></header>
+    <section className="card joven-registro"><h2>{sala.disponible ? 'Selecciona tu nombre' : 'La sesión no está abierta'}</h2><p className="joven-ayuda">{sala.disponible ? 'Comprueba tu nombre antes de confirmar. Tu progreso quedará vinculado a este dispositivo.' : 'El encargado te indicará cuándo puedes entrar.'}</p>
+      {error && <p role="alert" className="alert alert-error">{error}</p>}
+      <div className="joven-nombres">{sala.participantes.map(p => <button key={p.id} disabled={procesando} className={seleccion === p.id ? 'seleccionado' : ''} aria-pressed={seleccion === p.id} onClick={() => setSeleccion(p.id)}>{p.nombre}{seleccion === p.id && <UserCheck size={20} />}</button>)}</div>
+      {sala.disponible && !sala.participantes.length && <p>No quedan nombres disponibles. Si ya te registraste en otro dispositivo, pide al encargado un código de recuperación.</p>}
+      {sala.disponible && <button className="btn btn-primary" onClick={() => confirmar()} disabled={!seleccion || procesando}>{procesando ? 'Preparando…' : 'Soy yo, confirmar'}<ArrowRight size={18} /></button>}
+      <details className="joven-recuperacion"><summary>Tengo un código de recuperación</summary><label className="form-label" htmlFor="recuperacion">Código entregado por el encargado</label><input id="recuperacion" className="form-input" autoComplete="off" value={codigo} onChange={e => setCodigo(e.target.value)} maxLength={48} /><button className="btn btn-secondary" onClick={() => confirmar(true)} disabled={procesando || !codigo.trim()}>Recuperar mi examen</button></details>
+    </section>
+  </div></main>
 }

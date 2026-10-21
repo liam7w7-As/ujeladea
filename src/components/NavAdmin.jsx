@@ -1,113 +1,31 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { LogOut, LayoutDashboard, Database, Trophy, Building2, Layers } from 'lucide-react'
 import { useExamen } from '../context/ExamenContext'
-import { LogOut, LayoutDashboard, Database, Trophy, Building2 } from 'lucide-react'
+import { useEtapa } from '../context/etapa-context'
 
 export default function NavAdmin() {
-  const { usuario, logoutAdmin } = useExamen()
+  const { logoutAdmin } = useExamen()
+  const { etapa } = useEtapa()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  const handleLogout = async () => {
-    await logoutAdmin()
-    localStorage.removeItem('torneo_admin')
-    navigate('/admin')
+  const [error, setError] = useState('')
+  const [saliendo, setSaliendo] = useState(false)
+  async function salir() {
+    setSaliendo(true)
+    try { await logoutAdmin(); navigate('/admin/login', { replace: true }) }
+    catch { setError('No se pudo cerrar la sesión. Intenta de nuevo.'); setSaliendo(false) }
   }
-
-  const links = [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Ranking', path: '/admin/ranking', icon: <Trophy size={18} /> },
-    { label: 'Sociedades', path: '/admin/sociedades', icon: <Building2 size={18} /> },
-    { label: 'Banco de Preguntas', path: '/admin/preguntas', icon: <Database size={18} /> },
-  ]
-
-  const isActive = (path) => {
-    // Si estamos en dashboard
-    if (path === '/admin/dashboard' && location.pathname === '/admin/dashboard') return true;
-    if (path === '/admin/dashboard' && location.pathname.startsWith('/admin/sesion') && !location.pathname.includes('/resultados') && !location.pathname.includes('/calificar')) return true; // SalaEspera / CrearSesion entran aqui como flujo del dashboard.
-    
-    // Si no es el dashboard base
-    if (path !== '/admin/dashboard' && location.pathname.startsWith(path)) return true;
-    
-    return false;
-  }
-
-  return (
-    <nav style={{ 
-      background: 'var(--color-bg-raised)', 
-      borderBottom: '1px solid var(--color-border)',
-      padding: '0 var(--space-lg)',
-      boxShadow: 'var(--shadow-md)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      minHeight: '60px',
-      flexWrap: 'wrap',
-      gap: 'var(--space-md)'
-    }}>
-      
-      {/* Brand & Links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xl)', flex: 1, minWidth: '300px' }}>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-          <img src="/logo.png" alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--color-accent)' }} />
-          <span className="brand-title hide-mobile" style={{ fontSize: '1.2rem', marginBottom: 0 }}>
-            UJELADEA
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', gap: 'var(--space-md)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          {links.map(link => {
-            const active = isActive(link.path)
-            return (
-              <button
-                key={link.path}
-                onClick={() => navigate(link.path)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: `2px solid ${active ? 'var(--color-primary)' : 'transparent'}`,
-                  color: active ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '18px 8px',
-                  fontSize: '0.95rem',
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {link.icon}
-                <span className="hide-mobile">{link.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* User / Settings / Logout */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-        <div className="hide-mobile" style={{
-          background: 'var(--color-bg-surface)',
-          padding: '6px 12px',
-          borderRadius: 'var(--radius-xl)',
-          fontSize: '0.85rem',
-          color: 'var(--color-text-secondary)',
-          border: '1px solid var(--color-border)',
-          marginRight: '8px'
-        }}>
-          admin
-        </div>
-        <button onClick={handleLogout} className="btn" style={{ background: 'transparent', padding: '8px', color: 'var(--color-text-muted)', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }} title="Cerrar Sesión">
-          <LogOut size={20} />
-          <span className="hide-mobile" style={{ fontSize: '0.85rem' }}>Salir</span>
-        </button>
-      </div>
-
-    </nav>
-  )
+  return <header className="admin-header">
+    <div className="admin-nav">
+      <Link to="/admin/etapas" className="admin-brand"><img src="/logo.png" alt="" /><span>UJELADEA<small>Administración del torneo</small></span></Link>
+      <nav aria-label="Administración" className="admin-links">
+        <NavLink to="/admin/etapas"><Layers size={17} />Etapas</NavLink>
+        {etapa && <><NavLink to="/admin/dashboard"><LayoutDashboard size={17} />Sesiones</NavLink><NavLink to="/admin/preguntas"><Database size={17} />Preguntas</NavLink><NavLink to="/admin/ranking"><Trophy size={17} />Ranking</NavLink></>}
+        <NavLink to="/admin/sociedades"><Building2 size={17} />Sociedades</NavLink>
+      </nav>
+      <button onClick={salir} disabled={saliendo} className="btn btn-secondary admin-logout"><LogOut size={17} />{saliendo ? 'Saliendo…' : 'Salir'}</button>
+    </div>
+    {etapa && <div className="admin-stage-line">Etapa seleccionada: <strong>{etapa.libro} · {etapa.anio}</strong><Link to="/admin/etapas">Cambiar etapa</Link></div>}
+    {error && <p className="alert alert-error" role="alert">{error}</p>}
+  </header>
 }

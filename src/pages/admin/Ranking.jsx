@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { obtenerDatosCompletosRanking } from '../../lib/supabase'
-import { generarReportePDF, generarInformeOficialDirectiva } from '../../lib/pdf'
+import { supabase } from '../../lib/supabase'
+import { useEtapa } from '../../context/etapa-context'
+import { cargarResumenEtapa, rankingEtapa } from '../../lib/etapas'
+import EtapaAviso from '../../components/EtapaAviso'
 import NavAdmin from '../../components/NavAdmin'
 import EstadoBadge from '../../components/EstadoBadge'
 import { 
@@ -11,32 +13,28 @@ import {
 
 export default function Ranking() {
   const navigate = useNavigate()
+  const { etapa, archivo } = useEtapa()
   const [datos, setDatos] = useState({
     rankingSociedades: [],
     rankingDisciplina: [],
     topJovenes: [],
     metricasGlobales: null
   })
+  const [datosEtapa, setDatosEtapa] = useState(null)
   const [pestanaActiva, setPestanaActiva] = useState('sociedades') // 'sociedades' | 'jovenes' | 'disciplina'
   const [cargando, setCargando] = useState(true)
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    cargarRanking()
-  }, [])
-
-  const cargarRanking = async () => {
-    try {
-      setCargando(true)
-      const res = await obtenerDatosCompletosRanking()
-      setDatos(res)
-    } catch (err) {
-      setError('Error al cargar el ranking: ' + err.message)
-    } finally {
-      setCargando(false)
-    }
-  }
+    let vigente = true
+    cargarResumenEtapa(supabase, etapa, archivo).then(data => {
+      if (vigente) { setDatosEtapa(data); setDatos(rankingEtapa(data)); setCargando(false) }
+    }).catch(err => {
+      if (vigente) { setError('Error al cargar el ranking: ' + err.message); setCargando(false) }
+    })
+    return () => { vigente = false }
+  }, [etapa, archivo])
 
   const getBadgePorcentaje = (porcentaje) => {
     if (porcentaje >= 80) return <EstadoBadge estado="excelente" />
@@ -46,15 +44,20 @@ export default function Ranking() {
 
   // Exportar Informe Formal Oficial para la Directiva
   const exportarInformeDirectiva = async () => {
-    if (!datos.rankingSociedades || datos.rankingSociedades.length === 0) return
+    if (!datosEtapa || cargando || generandoPDF) return
     try {
       setGenerandoPDF(true)
-      await generarInformeOficialDirectiva({
+      const generar = etapa.historica
+        ? (await import('../../lib/pdf')).generarInformeOficialDirectiva
+        : (await import('../../lib/pdf-etapa')).generarInformeEtapaV2
+      await generar({
+        datos: datosEtapa,
+        etapa,
         rankingSociedades: datos.rankingSociedades,
         rankingDisciplina: datos.rankingDisciplina,
         topJovenes: datos.topJovenes,
         metricasGlobales: datos.metricasGlobales || {},
-        nombreArchivo: `Informe_Oficial_Directiva_UJELADEA_${new Date().toISOString().split('T')[0]}.pdf`
+        nombreArchivo: `Informe_${etapa.codigo}_${new Date().toISOString().split('T')[0]}.pdf`
       })
     } catch (err) {
       console.error('Error generando informe oficial:', err)
@@ -65,7 +68,7 @@ export default function Ranking() {
   }
 
   // Exportar lista simple tradicional en PDF
-  const exportarListaSimple = () => {
+  const exportarListaSimple = async () => {
     if (datos.rankingSociedades.length === 0) return
 
     const columnas = ['Posición', 'Sociedad', 'Iglesia', 'Participación', 'Puntaje Obtenido', 'Promedio', 'Alertas', 'Efectividad']
@@ -87,13 +90,17 @@ export default function Ranking() {
       ]
     })
 
-    generarReportePDF({
+    try {
+    const { generarReportePDF } = await import('../../lib/pdf')
+    await generarReportePDF({
+      etapa,
       titulo: 'Ranking General de Sociedades',
       subtitulo: `Total de sociedades evaluadas: ${datos.rankingSociedades.length} | Olimpiadas Bíblicas UJELADEA`,
       columnas,
       filas,
-      nombreArchivo: 'Ranking_General_Sociedades_UJELADEA.pdf'
+      nombreArchivo: `Ranking_${etapa.codigo}.pdf`
     })
+    } catch (err) { setError('No se pudo exportar: ' + err.message) }
   }
 
   const { rankingSociedades, rankingDisciplina, topJovenes, metricasGlobales } = datos
@@ -105,28 +112,29 @@ export default function Ranking() {
       <div className="page-wrapper" style={{ padding: 'var(--space-xl)', flex: 1, alignItems: 'flex-start' }}>
         <div className="page-content animate-in" style={{ maxWidth: '1050px', width: '100%', margin: '0 auto' }}>
           
+          <EtapaAviso />
           {/* Encabezado Superior */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-xl)', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
             <div>
               <h1 className="brand-title" style={{ fontSize: '2rem', marginBottom: 'var(--space-xs)', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Trophy color="var(--color-accent)" size={32} />
-                Ranking y Evaluación Oficial
+                Ranking de la etapa
               </h1>
               <p style={{ color: 'var(--color-text-muted)' }}>
-                Olimpiadas Bíblicas UJELADEA 2026 — Clasificación y Cuadro de Honor
+                {etapa.libro} · {etapa.anio} — Clasificación y Cuadro de Honor
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button 
                 onClick={exportarInformeDirectiva} 
-                disabled={generandoPDF || cargando || rankingSociedades.length === 0}
+                disabled={generandoPDF || cargando || !datosEtapa || (etapa.historica && rankingSociedades.length === 0)}
                 className="btn btn-primary"
                 style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(143,25,55,0.3)' }}
-                title="Genera el informe oficial para presentar a la directiva y pastores"
+                title={etapa.historica ? "Exportar informe histórico para la directiva" : "Exportar el avance y los resultados de esta etapa para el jurado"}
               >
                 {generandoPDF ? <Loader2 className="spinner" size={18} /> : <FileText size={18} />}
-                <span>{generandoPDF ? 'Generando Informe...' : 'Informe para Directiva (PDF)'}</span>
+                <span>{generandoPDF ? 'Generando informe…' : 'Informe para Directiva (PDF)'}</span>
               </button>
 
               <button 

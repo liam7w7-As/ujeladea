@@ -1,0 +1,68 @@
+import { createRequire } from 'node:module'
+import { writeFile } from 'node:fs/promises'
+const require=createRequire(process.env.UJELADEA_UI_PACKAGE_JSON||new URL('../package.json',import.meta.url))
+const { chromium }=require('playwright')
+const expect=require('playwright/test').expect.configure({timeout:25000})
+const base='http://127.0.0.1:5173'
+const meta=await(await fetch(base+'/demo/estado')).json()
+const auth=await(await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin@demo.local',password:'DemoLocal2026!'})})).json()
+const headers={'content-type':'application/json',Authorization:'Bearer '+auth.access_token}
+const sociedades=await(await fetch(base+'/rest/v1/sociedades',{method:'POST',headers,body:JSON.stringify({nombre:'Sala de verificación local',iglesia:'Demo de reconexión',total_censo:3})})).json()
+const creada=await(await fetch(base+'/rest/v1/rpc/admin_examen_crear_sesion',{method:'POST',headers,body:JSON.stringify({p_etapa:meta.etapa,p_sociedad:sociedades[0].id,p_participantes:[1,2,3].map(n=>({nombre:'Joven de demostración '+n,del_censo:true}))})})).json()
+if(!creada.sesion_id)throw Error('No se pudo crear la sala de verificación local')
+meta.espera=creada.sesion_id
+const browser=await chromium.launch({channel:process.env.UJELADEA_UI_BROWSER||'msedge',headless:true})
+const admin=await browser.newContext(), joven=await browser.newContext(), segundo=await browser.newContext()
+const panel=await admin.newPage(), pagina=await joven.newPage(), otra=await segundo.newPage()
+const errores=[],checks=[]
+for(const p of [panel,pagina,otra])p.on('pageerror',e=>errores.push(e.message))
+function ok(s){checks.push(s);console.log('OK:',s)}
+try {
+  await panel.goto(base+meta.enlaces.panel)
+  await expect(panel.getByRole('button',{name:'Administrar Efesios'})).toBeVisible()
+  await panel.goto(base+'/admin/sesion/'+meta.espera+'/espera')
+  await expect(panel.getByText('0 / 3',{exact:true})).toBeVisible()
+  await pagina.goto(base+'/examen/'+meta.espera)
+  await pagina.getByRole('button',{name:'Joven de demostración 1',exact:true}).click()
+  await pagina.getByRole('button',{name:'Soy yo, confirmar'}).click()
+  await expect(pagina.getByRole('heading',{name:'El examen comenzará pronto'})).toBeVisible()
+  await panel.bringToFront()
+  await expect(panel.getByText('1 / 3',{exact:true})).toBeVisible()
+  ok('la consulta de respaldo detecta un registro en otro navegador sin recargar el panel')
+  await admin.setOffline(true)
+  await expect(panel.getByText('Sin conexión. El panel se actualizará al volver la red.')).toBeVisible()
+  await otra.goto(base+'/examen/'+meta.espera)
+  await otra.getByRole('button',{name:'Joven de demostración 2',exact:true}).click()
+  await otra.getByRole('button',{name:'Soy yo, confirmar'}).click()
+  await expect(otra.getByRole('heading',{name:'El examen comenzará pronto'})).toBeVisible()
+  await admin.setOffline(false)
+  await panel.bringToFront()
+  await expect(panel.getByText('2 / 3',{exact:true})).toBeVisible()
+  ok('al reconectar recupera registros perdidos durante la desconexión')
+  await panel.getByRole('button',{name:/INICIAR EXAMEN/i}).click()
+  await panel.getByRole('button',{name:'Sí, confirmar',exact:true}).click()
+  await expect(pagina.getByText('Pregunta 1 de 45',{exact:true})).toBeVisible()
+  await expect(otra.getByText('Pregunta 1 de 45',{exact:true})).toBeVisible()
+  ok('el inicio desde el panel llega a ambos jóvenes')
+  const opciones=pagina.getByRole('group',{name:'Opciones de respuesta'}).getByRole('button')
+  if(await opciones.count())await opciones.first().click()
+  else await pagina.getByRole('textbox',{name:'Tu respuesta'}).fill('Borrador de prueba de la reconexión del panel')
+  await pagina.getByRole('button',{name:'Confirmar y continuar'}).click()
+  await expect(pagina.getByText('Pregunta 2 de 45',{exact:true})).toBeVisible()
+  await panel.bringToFront()
+  await expect(panel.getByText('1 / 45',{exact:true})).toBeVisible()
+  ok('el panel recupera el progreso confirmado de respuestas sin Realtime')
+  await panel.getByRole('button',{name:'Finalizar Examen Ahora',exact:true}).click()
+  await panel.getByRole('button',{name:'Sí, confirmar',exact:true}).click()
+  await expect(panel).toHaveURL(/\/resultados$/)
+  await expect(pagina.getByRole('heading',{name:'Tu examen ha finalizado'})).toBeVisible()
+  await expect(otra.getByRole('heading',{name:'Tu examen ha finalizado'})).toBeVisible()
+  ok('el cierre del jurado se confirma en los dos navegadores')
+  if(errores.length)throw Error(errores.join('\n'))
+  ok('sin errores de React en los tres contextos')
+  await writeFile('.local-db/demo/panel-recuperacion.json',JSON.stringify({alcance:'Tres navegadores aislados con HTTP local y PostgreSQL PGlite; Auth simulado y sin WebSocket de Supabase real.',checks,errores},null,2))
+}catch(error){
+  console.error(error.stack)
+  for(const [nombre,p]of [['panel',panel],['joven',pagina],['otro',otra]]){console.error(nombre,(await p.locator('body').innerText()).slice(0,2200));await p.screenshot({path:'.local-db/demo/fallo-'+nombre+'.png',fullPage:true})}
+  process.exitCode=1
+}finally{await browser.close()}

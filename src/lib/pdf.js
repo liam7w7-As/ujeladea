@@ -1,5 +1,8 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { etiquetaEtapa } from './etapas.js'
+const tituloTorneo = etapa => `OLIMPIADAS BÍBLICAS UJELADEA${etapa ? ` ${etapa.anio}` : ''}`
+const subtituloEtapa = etapa => etapa ? etiquetaEtapa(etapa) : 'Catálogo general'
 
 // Colores institucionales
 const C = {
@@ -16,13 +19,14 @@ const C = {
 }
 
 // Cargar imagen como base64 circular
-function getLogoBase64(imageUrl) {
+export function getLogoBase64(imageUrl) {
   return new Promise((resolve) => {
     const img = new Image()
     img.setAttribute('crossOrigin', 'anonymous')
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      const size = Math.min(img.width, img.height)
+      const sourceSize = Math.min(img.width, img.height)
+      const size = Math.min(sourceSize, 320)
       canvas.width = size
       canvas.height = size
       const ctx = canvas.getContext('2d')
@@ -30,9 +34,9 @@ function getLogoBase64(imageUrl) {
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2, true)
       ctx.closePath()
       ctx.clip()
-      const srcX = (img.width - size) / 2
-      const srcY = (img.height - size) / 2
-      ctx.drawImage(img, srcX, srcY, size, size, 0, 0, size, size)
+      const srcX = (img.width - sourceSize) / 2
+      const srcY = (img.height - sourceSize) / 2
+      ctx.drawImage(img, srcX, srcY, sourceSize, sourceSize, 0, 0, size, size)
       ctx.beginPath()
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2, true)
       ctx.lineWidth = size * 0.03
@@ -61,6 +65,7 @@ function textCentered(doc, text, x, y, w) {
 //  REPORTE DE RESULTADOS (con estadísticas enriquecidas)
 // ─────────────────────────────────────────────────────────────────────────────
 export const generarReporteResultados = async ({
+  etapa,
   sesion,          // { nombre sociedad, iglesia, ... }
   estadisticas,    // objeto completo de calcularPuntajeSociedad
   participantes,   // array con { nombre, del_censo, puntaje_total, pendientes }
@@ -83,23 +88,23 @@ export const generarReporteResultados = async ({
   try {
     const logoData = await getLogoBase64('/logo.png')
     if (logoData) doc.addImage(logoData, 'PNG', MARGIN, 6, 22, 22)
-  } catch (_) {}
+  } catch { /* El informe se genera también si el logo no está disponible. */ }
 
   // Nombre institución
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(15)
   doc.setTextColor(...C.white)
-  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 42, 15)
+  doc.text(tituloTorneo(etapa), 42, 15)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(240, 210, 220)
-  doc.text('1ra Etapa — HEBREOS', 42, 21)
+  doc.text(subtituloEtapa(etapa), 42, 21)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
   doc.setTextColor(225, 195, 210)
-  doc.text('Reporte Oficial de Resultados', 42, 27)
+  doc.text(etapa?.estado === 'cerrada' ? 'Resultados archivados' : 'Resultados provisionales', 42, 27)
 
   // Fecha (derecha)
   const fechaStr = new Date().toLocaleDateString('es-ES', {
@@ -288,7 +293,7 @@ export const generarReporteResultados = async ({
         }
       }
     },
-    didDrawPage: (data) => {
+    didDrawPage: () => {
       // ── PIE DE PÁGINA ──────────────────────────────────────────────────────
       const pageNum = doc.internal.getNumberOfPages()
 
@@ -299,7 +304,7 @@ export const generarReporteResultados = async ({
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...C.gray)
-      doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026 — 1ra Etapa HEBREOS', MARGIN, PH - 6)
+      doc.text(`${tituloTorneo(etapa)} — ${subtituloEtapa(etapa)}`, MARGIN, PH - 6)
       doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
     },
   })
@@ -315,7 +320,7 @@ export const generarReporteResultados = async ({
 // ─────────────────────────────────────────────────────────────────────────────
 //  REPORTE GENÉRICO (Ranking, Banco de Preguntas, etc.)
 // ─────────────────────────────────────────────────────────────────────────────
-export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, nombreArchivo }) => {
+export const generarReportePDF = async ({ etapa, titulo, subtitulo, columnas, filas, nombreArchivo }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const PW = doc.internal.pageSize.getWidth()
   const PH = doc.internal.pageSize.getHeight()
@@ -331,18 +336,18 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
   try {
     const logoData = await getLogoBase64('/logo.png')
     if (logoData) doc.addImage(logoData, 'PNG', MARGIN, 5, 18, 18)
-  } catch (_) {}
+  } catch { /* El informe se genera también si el logo no está disponible. */ }
 
   // Títulos en banda
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(...C.white)
-  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 37, 13)
+  doc.text(tituloTorneo(etapa), 37, 13)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(240, 210, 220)
-  doc.text('1ra Etapa — HEBREOS', 37, 19)
+  doc.text(subtituloEtapa(etapa), 37, 19)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
@@ -397,14 +402,14 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
     columnStyles: {
       0: { halign: 'center', fontStyle: 'bold', cellWidth: 18, textColor: C.primary },
     },
-    didDrawPage: (data) => {
+    didDrawPage: () => {
       const pageNum = doc.internal.getNumberOfPages()
       doc.setFillColor(...C.lightGray)
       doc.rect(0, PH - 14, PW, 14, 'F')
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...C.gray)
-      doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026 — 1ra Etapa HEBREOS', MARGIN, PH - 6)
+      doc.text(`${tituloTorneo(etapa)} — ${subtituloEtapa(etapa)}`, MARGIN, PH - 6)
       doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
     },
   })
@@ -420,6 +425,7 @@ export const generarReportePDF = async ({ titulo, subtitulo, columnas, filas, no
 //  REPORTE INDIVIDUAL POR PARTICIPANTE (Detalle Pregunta por Pregunta)
 // ─────────────────────────────────────────────────────────────────────────────
 export const generarReporteIndividual = async ({
+  etapa,
   sesion,        // { sociedad, iglesia, fecha }
   participante,  // { nombre, del_censo, puntaje_total, puntaje_max, alertas, pendientes }
   respuestas,    // array de respuestas con preguntas (texto, respuesta_correcta, puntaje, tipo)
@@ -441,18 +447,18 @@ export const generarReporteIndividual = async ({
   try {
     const logoData = await getLogoBase64('/logo.png')
     if (logoData) doc.addImage(logoData, 'PNG', MARGIN, 6, 22, 22)
-  } catch (_) {}
+  } catch { /* El informe se genera también si el logo no está disponible. */ }
 
   // Títulos
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(15)
   doc.setTextColor(...C.white)
-  doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026', 42, 15)
+  doc.text(tituloTorneo(etapa), 42, 15)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(240, 210, 220)
-  doc.text('1ra Etapa — HEBREOS', 42, 21)
+  doc.text(subtituloEtapa(etapa), 42, 21)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
@@ -634,7 +640,7 @@ export const generarReporteIndividual = async ({
         }
       }
     },
-    didDrawPage: (data) => {
+    didDrawPage: () => {
       const pageNum = doc.internal.getNumberOfPages()
       doc.setFillColor(...C.lightGray)
       doc.rect(0, PH - 14, PW, 14, 'F')
@@ -642,7 +648,7 @@ export const generarReporteIndividual = async ({
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...C.gray)
-      doc.text(`OLIMPIADAS BÍBLICAS UJELADEA 2026 — Participante: ${participante.nombre}`, MARGIN, PH - 6)
+      doc.text(`${tituloTorneo(etapa)} — ${subtituloEtapa(etapa)} — ${participante.nombre}`, MARGIN, PH - 6)
       doc.text(`Página ${pageNum}`, PW - MARGIN, PH - 6, { align: 'right' })
     },
   })
@@ -658,8 +664,8 @@ export const generarReporteIndividual = async ({
 //  INFORME OFICIAL PARA LA DIRECTIVA DE UJELADEA
 // ─────────────────────────────────────────────────────────────────────────────
 export const generarInformeOficialDirectiva = async ({
+  etapa,
   rankingSociedades = [],
-  rankingDisciplina = [],
   topJovenes = [],
   metricasGlobales = {},
   nombreArchivo = 'Informe_Oficial_Directiva_UJELADEA.pdf'
@@ -681,7 +687,7 @@ export const generarInformeOficialDirectiva = async ({
   try {
     const logoData = await getLogoBase64('/logo.png')
     if (logoData) doc.addImage(logoData, 'PNG', MARGIN, 6, 22, 22)
-  } catch (_) {}
+  } catch { /* El informe se genera también si el logo no está disponible. */ }
 
   // Títulos institucionales
   doc.setFont('helvetica', 'bold')
@@ -692,7 +698,7 @@ export const generarInformeOficialDirectiva = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...C.white)
-  doc.text('OLIMPIADAS BÍBLICAS 2026 — FASE 1: HEBREOS', 42, 20)
+  doc.text(`${tituloTorneo(etapa)} — ${subtituloEtapa(etapa)}`, 42, 20)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
@@ -1071,13 +1077,13 @@ export const generarInformeOficialDirectiva = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(30, 70, 130)
-  doc.text('A. ESTRUCTURA DEL EXAMEN Y TIPOS DE PREGUNTAS (LIBRO DE HEBREOS):', MARGIN + 4, cursorY + 5)
+  doc.text(`A. ESTRUCTURA DEL EXAMEN Y TIPOS DE PREGUNTAS (${etapa?.libro?.toUpperCase() || 'ETAPA'}):`, MARGIN + 4, cursorY + 5)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(...C.dark)
-  doc.text('• Contenido evaluado: Epístola a los Hebreos completa (Capítulos 1 al 13).', MARGIN + 4, cursorY + 9.5)
-  doc.text('• Asignación de preguntas: 45 preguntas por participante, seleccionadas y ordenadas de forma aleatoria con semilla única.', MARGIN + 4, cursorY + 13.5)
+  doc.text(`• Contenido evaluado: ${etapa?.libro || 'Libro de la etapa'}.`, MARGIN + 4, cursorY + 9.5)
+  doc.text(`• Configuración de la etapa: ${etapa?.cantidad_preguntas || '—'} preguntas por participante; ${etapa?.tiempo_limite || '—'} minutos de duración.`, MARGIN + 4, cursorY + 13.5)
   doc.text('• Preguntas de Selección Múltiple: Con 4 alternativas estructuradas. Corrección automática inmediata contra la clave oficial.', MARGIN + 4, cursorY + 17.5)
   doc.text('• Preguntas de Respuesta Corta / Abierta: Evaluación doctrinal y narrativa con análisis semántico y supervisión evaluadora.', MARGIN + 4, cursorY + 21.5)
 
@@ -1099,7 +1105,7 @@ export const generarInformeOficialDirectiva = async ({
   doc.setTextColor(...C.dark)
   doc.text('• Principio de Igualdad: No se suman simplemente los puntos brutos para no favorecer a sociedades más numerosas.', MARGIN + 4, cursorY + 9.5)
   doc.text('• Efectividad Neta (%): (Total de Puntos Obtenidos / Total de Puntos Posibles de los que rindieron) × 100 - Penalizaciones.', MARGIN + 4, cursorY + 13.5)
-  doc.text('  Esto garantiza que una sociedad de 12 jóvenes compita en igualdad absoluta de condiciones con una de 17 o más jóvenes.', MARGIN + 4, cursorY + 17.5)
+  doc.text('  El cálculo histórico usa las respuestas registradas, incluidas las repetidas; no corrige incidencias de V1.', MARGIN + 4, cursorY + 17.5)
   doc.text('• Promedio por Participante: (Suma de notas individuales / Cantidad de participantes). Mide el dominio promedio del equipo.', MARGIN + 4, cursorY + 21.5)
   doc.text('• Censo Informativo: La asistencia oficial registra cuántos jóvenes del censo asistieron, sin penalizar a los presentes.', MARGIN + 4, cursorY + 25.5)
 
@@ -1155,7 +1161,7 @@ export const generarInformeOficialDirectiva = async ({
   doc.setFont('helvetica', 'italic')
   doc.setFontSize(6.8)
   doc.setTextColor(...C.gray)
-  const certTexto = 'El presente informe oficial certifica los resultados alcanzados en la 1ra Etapa de las Olimpiadas Bíblicas UJELADEA 2026. Los datos han sido auditados digitalmente en base a las respuestas almacenadas y procesados con estricta sujeción a los criterios precedentes.'
+  const certTexto = `Este informe corresponde a ${subtituloEtapa(etapa)}. Presenta los registros conservados en su archivo histórico con los criterios de V1, sin depurar respuestas repetidas ni modificar puntajes guardados. No sustituye una revisión de las incidencias originales.`
   const certLines = doc.splitTextToSize(certTexto, CONTENT_W)
   doc.text(certLines, MARGIN, cursorY)
 
@@ -1169,7 +1175,7 @@ export const generarInformeOficialDirectiva = async ({
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...C.gray)
-    doc.text('OLIMPIADAS BÍBLICAS UJELADEA 2026 — Informe Oficial para la Directiva y Cuadro de Honor', MARGIN, PH - 6)
+    doc.text(`${tituloTorneo(etapa)} — ${subtituloEtapa(etapa)} — Informe para la Directiva`, MARGIN, PH - 6)
     doc.text(`Página ${i} de ${totalPages}`, PW - MARGIN, PH - 6, { align: 'right' })
   }
 

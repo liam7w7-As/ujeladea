@@ -1,0 +1,2 @@
+-- Los datos reales de Hebreos permanecen en el respaldo privado, fuera de Git.
+-- Efesios empieza sin preguntas ni participantes. Cargar su banco revisado en V2.

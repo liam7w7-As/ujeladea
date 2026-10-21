@@ -1,77 +1,54 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { esAdmin } from '../lib/etapas'
 
 const ExamenContext = createContext(null)
-
 export function ExamenProvider({ children }) {
-  const [usuario, setUsuario] = useState(null) // null | { tipo: 'admin', ...session }
+  const [usuario, setUsuario] = useState(null)
   const [sesionActiva, setSesionActiva] = useState(null)
   const [participanteActual, setParticipanteActual] = useState(null)
   const [cargando, setCargando] = useState(true)
-
-  // Escuchar cambios de autenticación de Supabase
+  const [errorAuth, setErrorAuth] = useState('')
   useEffect(() => {
-    // Obtener sesión actual al montar
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUsuario({ tipo: 'admin', ...session })
-      }
+    let vigente = true
+    let recibidoEvento = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      recibidoEvento = true
+      if (vigente) { setUsuario(esAdmin(session) ? { ...session, tipo: 'admin' } : null); setCargando(false) }
+    })
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!vigente || recibidoEvento) return
+      if (error) setErrorAuth('No se pudo comprobar tu sesión. Vuelve a iniciar sesión.')
+      setUsuario(esAdmin(data?.session) ? { ...data.session, tipo: 'admin' } : null)
       setCargando(false)
+    }).catch(() => {
+      if (vigente) { setErrorAuth('No se pudo comprobar tu sesión. Vuelve a iniciar sesión.'); setCargando(false) }
     })
-
-    // Suscribirse a cambios de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session) {
-          setUsuario({ tipo: 'admin', ...session })
-        } else {
-          setUsuario(null)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
+    return () => { vigente = false; subscription.unsubscribe() }
   }, [])
-
   const loginAdmin = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    setUsuario({ tipo: 'admin', ...data.session })
+    if (!esAdmin(data.session)) {
+      await supabase.auth.signOut()
+      throw new Error('Esta cuenta no tiene el rol de administrador del torneo.')
+    }
+    setUsuario({ ...data.session, tipo: 'admin' })
+    setErrorAuth('')
     return data
   }
-
   const logoutAdmin = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     setUsuario(null)
     setSesionActiva(null)
   }
-
-  const value = {
-    usuario,
-    sesionActiva,
-    participanteActual,
-    cargando,
-    loginAdmin,
-    logoutAdmin,
-    setSesionActiva,
-    setParticipanteActual,
-  }
-
-  return (
-    <ExamenContext.Provider value={value}>
-      {children}
-    </ExamenContext.Provider>
-  )
+  return <ExamenContext.Provider value={{ usuario, sesionActiva, participanteActual, cargando, errorAuth, loginAdmin, logoutAdmin, setSesionActiva, setParticipanteActual }}>{children}</ExamenContext.Provider>
 }
-
+// Conserva la API de contexto de las pantallas existentes.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useExamen() {
   const context = useContext(ExamenContext)
-  if (!context) {
-    throw new Error('useExamen debe usarse dentro de un ExamenProvider')
-  }
+  if (!context) throw new Error('useExamen debe usarse dentro de un ExamenProvider')
   return context
 }

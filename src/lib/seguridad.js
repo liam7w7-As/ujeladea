@@ -1,167 +1,62 @@
+// Señales de supervisión; no bloquean el guardado ni cambian la pregunta actual.
 export class SeguridadExamen {
-  constructor(participanteId, sesionId, supabaseClient, onAdvertencia) {
-    this.participanteId = participanteId;
-    this.sesionId = sesionId;
-    this.supabase = supabaseClient;
-    this.onAdvertencia = onAdvertencia; 
-    
-    // Bind methods 
-    this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
-    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-    this.handleContextMenu = this.handleContextMenu.bind(this);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    
-    this.activo = false;
-    this.advertenciasLocales = 0;
-
-    // Throttle: no enviar el mismo tipo de evento más de 1 vez cada 5 segundos
-    this._ultimoEventoPorTipo = {};
-    this._colaEventos = [];
-    this._flushTimer = null;
-  }
-
-  async iniciar() {
-    if (this.activo) return;
-    this.activo = true;
-
-    // 1. Intentar Fullscreen si está soportado y habilitado
-    if (document.fullscreenEnabled) {
-      try {
-        await document.documentElement.requestFullscreen();
-      } catch (err) {
-        console.warn("Fullscreen API falló o no está disponible", err);
-      }
-      document.addEventListener('fullscreenchange', this.handleFullscreenChange);
-    }
-
-    // 2. Visibilidad (cambio de pestaña)
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    
-    // 3. Clic derecho
-    document.addEventListener('contextmenu', this.handleContextMenu);
-    
-    // 4. Teclado
-    document.addEventListener('keydown', this.handleKeyDown);
-  }
-
-  destruir() {
-    this.activo = false;
-    document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    document.removeEventListener('contextmenu', this.handleContextMenu);
-    document.removeEventListener('keydown', this.handleKeyDown);
-    
-    // Flush cualquier evento pendiente antes de destruir
-    this._flushEventos();
-    if (this._flushTimer) clearTimeout(this._flushTimer);
-
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-  }
-
-  // Throttle: máximo 1 evento del mismo tipo cada 5 segundos
-  _puedeEnviar(tipo) {
-    const ahora = Date.now();
-    const ultimo = this._ultimoEventoPorTipo[tipo] || 0;
-    if (ahora - ultimo < 5000) return false;
-    this._ultimoEventoPorTipo[tipo] = ahora;
-    return true;
-  }
-
-  // Batch: acumular eventos y enviarlos cada 3 segundos en lote
-  _encolarEvento(tipo) {
-    this._colaEventos.push({
-      participante_id: this.participanteId,
-      sesion_id: this.sesionId,
-      tipo: tipo
-    });
-
-    if (!this._flushTimer) {
-      this._flushTimer = setTimeout(() => this._flushEventos(), 3000);
-    }
-  }
-
-  async _flushEventos() {
-    this._flushTimer = null;
-    if (this._colaEventos.length === 0) return;
-
-    const lote = [...this._colaEventos];
-    this._colaEventos = [];
-
+  constructor({ intento, reportar, onAdvertencia, storage = globalThis.localStorage }) {
+    this.intento = intento
+    this.reportar = reportar
+    this.onAdvertencia = onAdvertencia
+    this.storage = storage
+    this.key = 'ujeladea_eventos_v2:' + intento
+    this.ultimos = {}
+    this.cola = []
     try {
-      const { error } = await this.supabase
-        .from('eventos_sesion')
-        .insert(lote);
-      if (error) console.error("Error registrando lote de eventos:", error);
-    } catch (e) {
-      console.error("Excepción registrando lote de eventos", e);
-    }
+      const guardados = JSON.parse(storage?.getItem(this.key) || '[]')
+      if (Array.isArray(guardados)) this.cola = guardados.filter(e => typeof e.id === 'string' && typeof e.tipo === 'string').slice(-200)
+    } catch { /* El registro sigue disponible sin caché local. */ }
+    this.visibilidad = () => { if (document.hidden) this.registrar('cambio_pestana', true) }
+    this.fullscreen = () => { if (!document.fullscreenElement) this.registrar('salio_fullscreen', true) }
+    this.contexto = () => this.registrar('intento_clic_derecho')
+    this.teclas = e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') this.registrar('intento_copiar') }
+    this.online = () => { void this.enviar() }
   }
-
-  registrarEvento(tipo, notificarUI = false) {
-    if (!this._puedeEnviar(tipo)) return;
-
-    this._encolarEvento(tipo);
-    
-    if (notificarUI) {
-      this.advertenciasLocales += 1;
-      if (this.onAdvertencia) {
-        this.onAdvertencia(tipo, this.advertenciasLocales);
-      }
-    }
+  iniciar() {
+    this.activo = true
+    document.addEventListener('visibilitychange', this.visibilidad)
+    document.addEventListener('fullscreenchange', this.fullscreen)
+    document.addEventListener('contextmenu', this.contexto)
+    document.addEventListener('keydown', this.teclas)
+    window.addEventListener('online', this.online)
+    this.timer = setInterval(() => { void this.enviar() }, 3000)
   }
-
-  handleFullscreenChange() {
-    if (!this.activo) return;
-    if (!document.fullscreenElement) {
-      this.registrarEvento('salio_fullscreen', true);
-    }
+  persistir() { try { this.storage?.setItem(this.key, JSON.stringify(this.cola)) } catch { /* No interrumpe el examen. */ } }
+  registrar(tipo, avisar = false) {
+    if (!this.activo || Date.now() - (this.ultimos[tipo] || 0) < 5000) return
+    this.ultimos[tipo] = Date.now()
+    this.cola.push({ id: crypto.randomUUID(), tipo })
+    this.cola = this.cola.slice(-200)
+    this.persistir()
+    if (avisar) this.onAdvertencia?.(tipo)
+    void this.enviar()
   }
-
-  handleVisibilityChange() {
-    if (!this.activo) return;
-    if (document.hidden) {
-      this.registrarEvento('cambio_pestana', true);
-    }
+  async enviar() {
+    if (this.enviando || !this.cola.length) return
+    this.enviando = true
+    const lote = this.cola.slice(0,20)
+    try {
+      await this.reportar(this.intento, lote)
+      const ids = new Set(lote.map(e => e.id))
+      this.cola = this.cola.filter(e => !ids.has(e.id))
+      this.persistir()
+    } catch { /* Reintento con los mismos identificadores; no se duplica el evento. */ }
+    finally { this.enviando = false }
   }
-
-  handleContextMenu(e) {
-    if (this.activo) {
-      e.preventDefault();
-      this.registrarEvento('intento_clic_derecho', false);
-    }
-  }
-
-  handleKeyDown(e) {
-    if (!this.activo) return;
-
-    // F12
-    if (e.key === 'F12') {
-      e.preventDefault();
-      this.registrarEvento('devtools_detectado', false);
-    }
-    
-    // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
-    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) {
-      e.preventDefault();
-      this.registrarEvento('devtools_detectado', false);
-    }
-    
-    if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
-      e.preventDefault();
-      this.registrarEvento('devtools_detectado', false);
-    }
-
-    // Ctrl+S
-    if (e.ctrlKey && (e.key === 'S' || e.key === 's')) {
-      e.preventDefault();
-      this.registrarEvento('devtools_detectado', false);
-    }
-
-    // Ctrl+C, Ctrl+A (Solo registrar, no bloquear)
-    if (e.ctrlKey && (e.key === 'C' || e.key === 'c' || e.key === 'A' || e.key === 'a')) {
-      this.registrarEvento('intento_copiar', false);
-    }
+  destruir() {
+    this.activo = false
+    clearInterval(this.timer)
+    document.removeEventListener('visibilitychange', this.visibilidad)
+    document.removeEventListener('fullscreenchange', this.fullscreen)
+    document.removeEventListener('contextmenu', this.contexto)
+    document.removeEventListener('keydown', this.teclas)
+    window.removeEventListener('online', this.online)
+    void this.enviar()
   }
 }

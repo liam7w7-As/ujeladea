@@ -22,10 +22,10 @@ export default function AdvertenciaOverlay({ isOpen, onContinuar }) {
       backdropFilter: 'blur(8px)',
       animation: 'fadeIn 0.3s ease-out'
     }}>
-      <div className="card fade-in" style={{ 
-        maxWidth: '450px', 
-        width: '100%', 
-        background: 'var(--color-bg-base)', 
+      <div className="card fade-in" style={{
+        maxWidth: '450px',
+        width: '100%',
+        background: 'var(--color-bg-base)',
         color: 'var(--color-text-primary)',
         border: '2px solid var(--color-error)',
         boxShadow: '0 10px 40px rgba(231, 76, 60, 0.2)'
@@ -35,23 +35,23 @@ export default function AdvertenciaOverlay({ isOpen, onContinuar }) {
             <AlertTriangle size={48} color="var(--color-error)" />
           </div>
         </div>
-        
+
         <h2 style={{ fontSize: '1.5rem', marginBottom: 'var(--space-sm)' }}>Saliste de la pantalla</h2>
         <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
-          Este evento ha sido registrado y notificado al jurado. 
-          Debes mantener la evaluación en pantalla completa. Presiona el botón para continuar.
+          Tu progreso se conserva.
+          Vuelve al examen para continuar. El evento se intenta enviar al encargado sin interrumpir tu progreso.
         </p>
 
-        <button 
-          onClick={onContinuar} 
-          className="btn btn-primary" 
+        <button
+          onClick={onContinuar}
+          className="btn btn-primary"
           style={{ width: '100%', background: 'var(--color-error)' }}
         >
           <Maximize size={18} />
-          Volver a pantalla completa
+          Continuar mi examen
         </button>
       </div>
-      
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }

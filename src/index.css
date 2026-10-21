@@ -500,3 +500,205 @@ a:hover {
   background: var(--color-primary);
   color: var(--color-text-on-primary);
 }
+
+/* Administración por etapas */
+.admin-header { position: sticky; top: 0; z-index: 100; background: var(--color-bg-raised); border-bottom: 1px solid var(--color-border); }
+.admin-nav { max-width: 1280px; margin: auto; display: flex; align-items: center; gap: 28px; padding: 14px 28px; }
+.admin-brand { display: flex; align-items: center; gap: 10px; color: var(--color-text-primary); font-weight: 700; letter-spacing: .06em; line-height: 1.3; flex-shrink: 0; }
+.admin-brand img { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--color-accent); }
+.admin-brand small { display: block; font-size: .64rem; color: var(--color-text-secondary); font-weight: 400; letter-spacing: .01em; }
+.admin-links { display: flex; flex: 1; gap: 5px; }
+.admin-links a { padding: 9px 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 7px; font-size: .85rem; border-radius: 7px; white-space: nowrap; }
+.admin-links a.active { color: var(--color-accent-light); background: var(--color-accent-muted); }
+.admin-logout { width: auto; padding: 8px 12px; font-size: .82rem; }
+.admin-stage-line { background: var(--color-bg-base); padding: 7px 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font-size: .75rem; color: var(--color-text-secondary); }
+.admin-stage-line a { margin-left: 12px; }
+.admin-content { max-width: 1120px; padding: 44px 28px 64px; margin: auto; width: 100%; }
+.admin-content > .alert { margin-bottom: 24px; }
+.admin-content .btn { width: auto; }
+.eyebrow { font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--color-accent); margin-bottom: 8px; }
+.etapa-page-title { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 14px 0 38px; }
+.etapa-page-title h1 { font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.18; font-weight: 500; letter-spacing: -.025em; }
+.etapa-page-title h1 span { color: var(--color-accent-light); }
+.etapa-intro { color: var(--color-text-secondary); margin-top: 16px; font-size: .94rem; }
+.etapas-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.etapa-card { padding: 28px; display: flex; flex-direction: column; }
+.etapa-card-closed { background: var(--color-bg-base); }
+.etapa-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.etapa-card-icon { width: 52px; height: 52px; display: grid; place-items: center; background: var(--color-accent-muted); color: var(--color-accent-light); border-radius: 14px; }
+.etapa-card h2 { font-size: 2.4rem; letter-spacing: -.02em; }
+.etapa-card-name { color: var(--color-text-secondary); font-size: .9rem; margin-top: 5px; }
+.etapa-card-description { font-size: .88rem; color: var(--color-text-secondary); margin: 22px 0; flex: 1; min-height: 44px; }
+.etapa-status { display: inline-flex; padding: 4px 10px; border-radius: 20px; font-size: .7rem; font-weight: 600; background: var(--color-bg-surface); color: #bbb7b1; border: 1px solid var(--color-border); }
+.etapa-status.borrador { color: #dfc576; background: var(--color-accent-muted); }
+.etapa-status.activa { color: #91d4a5; background: rgba(45,138,78,.15); }
+.etapa-stats { display: flex; gap: 32px; border-top: 1px solid var(--color-border); padding-top: 18px; margin-bottom: 20px; }
+.etapa-stats dt { font-size: .72rem; color: var(--color-text-secondary); }
+.etapa-stats dd { font-size: 1.5rem; margin: 4px 0 0; }
+.etapa-stats dd small { font-size: .8rem; font-weight: 400; color: var(--color-text-secondary); }
+.etapa-card > .btn { width: 100%; justify-content: space-between; }
+.etapa-bank-status { color: var(--color-text-secondary); font-size: .75rem; margin: -5px 0 18px; }
+.etapa-card-tools { display: flex; justify-content: space-between; gap: 12px; padding-top: 16px; }
+.etapa-card-tools button { border: 0; background: transparent; color: var(--color-accent-light); cursor: pointer; display: flex; gap: 6px; align-items: center; font: inherit; font-size: .78rem; }
+.etapa-card-tools button:disabled { color: var(--color-text-secondary); cursor: not-allowed; opacity: .55; }
+.etapa-current { font-size: .68rem; margin-top: 16px; color: var(--color-text-secondary); }
+.etapa-footer { display: flex; align-items: flex-start; gap: 12px; padding: 22px 0; color: var(--color-text-secondary); font-size: .8rem; }
+.etapa-footer svg { flex-shrink: 0; margin-top: 3px; }
+.etapa-catalog-link { font-size: .8rem; }
+.etapa-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+.etapa-heading h1 { font-size: 1.7rem; }
+.etapa-heading h2 { font-size: 1.3rem; }
+.etapa-help { color: var(--color-text-secondary); font-size: .85rem; margin: 10px 0 20px; }
+.etapa-editor { margin-bottom: 28px; padding: 28px; }
+.etapa-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.etapa-form-grid label, .etapa-filters label { min-width: 0; }
+.etapa-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.etapa-actions .btn { padding: 9px 14px; font-size: .82rem; }
+.icon-button { padding: 8px; }
+.etapa-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000; display: grid; place-items: center; padding: 20px; }
+.etapa-modal { width: 100%; max-width: 520px; padding: 30px; }
+.etapa-modal > p:not(.eyebrow) { color: var(--color-text-secondary); margin: 18px 0 24px; font-size: .9rem; }
+.etapa-aviso { display: flex; gap: 12px; align-items: flex-start; color: var(--color-accent-light); background: var(--color-accent-muted); border: 1px solid rgba(201,168,76,.18); border-radius: 10px; padding: 16px 18px; margin-bottom: 28px; font-size: .85rem; }
+.etapa-aviso svg { flex-shrink: 0; margin-top: 2px; }
+.etapa-aviso p { color: var(--color-text-secondary); font-size: .78rem; margin-top: 4px; }
+.etapa-session-list { display: flex; flex-direction: column; gap: 14px; }
+.etapa-session { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 22px; }
+.etapa-session-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.etapa-session h2 { font-size: 1.1rem; }
+.etapa-session p { display: flex; gap: 8px; align-items: center; color: var(--color-text-secondary); font-size: .78rem; margin-top: 10px; }
+.etapa-empty, .etapa-message { text-align: center; padding: 48px 24px; }
+.etapa-empty > svg { color: var(--color-accent); margin-bottom: 18px; }
+.etapa-empty h2 { font-size: 1.35rem; margin-bottom: 12px; }
+.etapa-empty p, .etapa-message p { color: var(--color-text-secondary); margin-bottom: 20px; }
+.etapa-empty .btn { display: inline-flex; }
+.etapa-filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.etapa-filters .form-label { display: flex; align-items: center; gap: 7px; }
+.etapa-question { padding: 24px; }
+.etapa-question .etapa-heading { margin-bottom: 12px; }
+.etapa-question h2 { font-size: 1rem; line-height: 1.6; font-weight: 500; white-space: pre-wrap; }
+.etapa-question details { font-size: .85rem; color: var(--color-text-secondary); margin-top: 16px; }
+.etapa-question summary { cursor: pointer; color: var(--color-accent-light); }
+.etapa-question details p { margin-top: 12px; white-space: pre-wrap; }
+.etapa-question ul { padding-left: 22px; margin-top: 12px; }
+.admin-content button:focus-visible, .admin-content a:focus-visible, .admin-header a:focus-visible, .admin-header button:focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 4px; }
+@media (max-width: 900px) {
+  .admin-nav { flex-wrap: wrap; gap: 12px; padding: 12px 18px; }
+  .admin-brand { flex: 1; }
+  .admin-links { order: 3; width: 100%; overflow-x: auto; }
+  .admin-links a { padding: 8px 10px; font-size: .8rem; }
+}
+@media (max-width: 620px) {
+  .admin-content { padding: 28px 18px 40px; }
+  .etapa-page-title { align-items: flex-start; flex-direction: column; gap: 22px; margin: 6px 0 26px; }
+  .etapa-page-title h1 { font-size: 2.1rem; }
+  .etapas-grid { grid-template-columns: 1fr; gap: 18px; }
+  .etapa-card { padding: 24px; }
+  .etapa-card h2 { font-size: 2.1rem; }
+  .etapa-form-grid { grid-template-columns: 1fr; }
+  .etapa-editor { padding: 22px; }
+  .etapa-filters { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .etapa-filters > label:first-child { grid-column: 1 / -1; }
+  .etapa-modal { padding: 24px; max-height: 90vh; overflow-y: auto; }
+  .etapa-question { padding: 20px; }
+}
+
+.etapa-results-table { width: 100%; border-collapse: collapse; font-size: .84rem; text-align: left; }
+.etapa-results-table th, .etapa-results-table td { padding: 14px 12px; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+.etapa-results-table thead th { font-size: .72rem; color: var(--color-text-secondary); font-weight: 500; }
+.etapa-results-table small { display: block; color: var(--color-text-secondary); font-size: .7rem; font-weight: 400; }
+
+.etapa-modal { margin: auto; color: var(--color-text-primary); max-height: 90vh; overflow-y: auto; }
+.etapa-modal::backdrop { background: rgba(0,0,0,.75); backdrop-filter: blur(4px); }
+@media (max-width: 900px) { .admin-links { flex: 1 0 100%; min-width: 0; } }
+
+/* Experiencia del participante V2 */
+.joven-logo { display: block; width: 72px; height: 72px; border-radius: 16px; margin: 0 auto 22px; border: 1px solid var(--color-accent); object-fit: cover; }
+.joven-libro { color: var(--color-accent-light); font-size: .82rem; margin: 8px 0; }
+.joven-ayuda { color: var(--color-text-secondary); font-size: .9rem; line-height: 1.7; margin: 16px 0 24px; }
+.joven-estado { text-align: center; }
+.joven-estado .spinner { margin: 0 auto 20px; }
+.joven-estado p { margin: 20px 0; }
+.joven-registro { padding: 28px; }
+.joven-registro h2 { font-size: 1.4rem; }
+.joven-nombres { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow: auto; margin-bottom: 24px; }
+.joven-nombres button { display: flex; align-items: center; justify-content: space-between; text-align: left; padding: 16px; min-height: 54px; border: 1px solid var(--color-border); background: var(--color-bg-base); color: var(--color-text-primary); border-radius: 10px; font: inherit; cursor: pointer; }
+.joven-nombres button.seleccionado { border-color: var(--color-accent); background: var(--color-accent-muted); }
+.joven-recuperacion { font-size: .82rem; margin-top: 28px; color: var(--color-text-secondary); }
+.joven-recuperacion summary { cursor: pointer; margin-bottom: 18px; color: var(--color-accent-light); }
+.joven-recuperacion .btn { margin-top: 12px; }
+.joven-espera, .joven-finalizado { text-align: center; }
+.joven-espera h1, .joven-finalizado h1 { font-size: 1.65rem; line-height: 1.4; margin: 20px 0 12px; }
+.joven-espera h2, .joven-finalizado h2 { font-size: 1.15rem; margin-top: 22px; }
+.joven-espera .spinner { margin: 36px auto; width: 40px; height: 40px; color: var(--color-accent); }
+.joven-versiculo { padding: 22px; border-left: 2px solid var(--color-accent); background: var(--color-bg-base); font-size: .88rem; font-style: italic; margin-top: 28px; text-align: left; }
+.joven-versiculo small { display: block; color: var(--color-accent-light); margin-top: 12px; }
+.joven-finalizado > svg { color: #75c48b; margin-bottom: 22px; }
+.joven-examen { min-height: 100dvh; }
+.joven-examen-header { position: sticky; top: 0; z-index: 50; padding: 16px max(20px, calc((100vw - 840px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--color-bg-raised); border-bottom: 1px solid var(--color-border); }
+.joven-examen-header .joven-libro { margin-top: 0; font-size: .74rem; }
+.joven-examen-header strong { font-size: 1rem; }
+.joven-examen-header div > p:last-child { font-size: .82rem; color: var(--color-text-secondary); margin-top: 5px; }
+.joven-reloj { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-accent-light); font-variant-numeric: tabular-nums; font-size: 1.15rem; flex-shrink: 0; }
+.joven-examen-content { max-width: 840px; padding: 24px 20px 48px; margin: auto; }
+.joven-progreso { height: 5px; background: var(--color-bg-surface); border-radius: 5px; overflow: hidden; margin-bottom: 16px; }
+.joven-progreso span { display: block; height: 100%; background: var(--color-accent); transition: width .2s; }
+.joven-fullscreen { display: flex; align-items: center; gap: 8px; margin: 0 0 20px auto; background: none; border: 0; color: var(--color-text-secondary); cursor: pointer; font: inherit; font-size: .8rem; padding: 8px 0; }
+.joven-enunciado { padding: 28px; margin-bottom: 24px; }
+.joven-enunciado h1 { font-size: 1.45rem; line-height: 1.6; font-weight: 500; white-space: pre-wrap; }
+.joven-opciones { display: flex; flex-direction: column; gap: 12px; }
+.joven-opciones button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 16px 20px; border: 2px solid var(--color-border); border-radius: 12px; background: var(--color-bg-base); color: var(--color-text-primary); font: inherit; font-size: 1rem; text-align: left; cursor: pointer; }
+.joven-opciones button > span { flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--color-bg-surface); width: 32px; height: 32px; font-size: .82rem; }
+.joven-opciones button > svg { margin-left: auto; flex-shrink: 0; }
+.joven-opciones button.seleccionada { border-color: var(--color-accent); background: var(--color-accent-muted); }
+.joven-opciones button:focus-visible, .joven-nombres button:focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 4px; }
+.joven-respuesta textarea { font-size: 1.05rem; line-height: 1.7; resize: vertical; min-height: 220px; }
+.joven-respuesta small { display: block; color: var(--color-text-secondary); font-size: .75rem; text-align: right; margin-top: 8px; }
+.joven-guardado { margin: 20px 0; min-height: 26px; color: var(--color-text-secondary); font-size: .8rem; }
+.joven-guardado.guardado { color: #85c49b; }
+.joven-guardado.error, .joven-guardado.conflicto, .joven-guardado.pendiente { padding: 16px; background: var(--color-accent-muted); color: var(--color-accent-light); border-radius: 10px; }
+.joven-guardado .btn { margin-top: 12px; font-size: .78rem; padding: 9px 14px; width: auto; }
+.joven-siguiente { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; border-top: 1px solid var(--color-border); }
+.joven-siguiente p { font-size: .78rem; color: var(--color-text-secondary); }
+.joven-siguiente .btn { width: auto; min-width: 240px; }
+.revision-respuesta { padding: 28px; }
+.revision-respuesta h2 { font-size: 1.15rem; line-height: 1.6; }
+.revision-texto { white-space: pre-wrap; margin: 20px 0; padding: 18px; background: var(--color-bg-base); border-radius: 10px; font-size: .9rem; }
+.revision-calificar { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+.revision-calificar .form-group { margin-bottom: 0; max-width: 150px; }
+.revision-calificar .btn { min-height: 46px; }
+@media (max-width: 600px) {
+  .joven-examen-header { padding: 12px 16px; }
+  .joven-examen-content { padding: 18px 16px 28px; }
+  .joven-reloj { font-size: 1rem; padding: 8px 10px; }
+  .joven-enunciado { padding: 24px 20px; }
+  .joven-enunciado h1 { font-size: 1.2rem; }
+  .joven-opciones button { padding: 14px; }
+  .joven-siguiente { align-items: stretch; flex-direction: column; gap: 12px; }
+  .joven-siguiente .btn { width: 100%; }
+  .joven-registro { padding: 24px 20px; }
+}
+
+/* Preparación y ayuda del examen */
+.joven-instrucciones { text-align: left; border-top: 1px solid var(--color-border); margin-top: 28px; padding-top: 24px; }
+.joven-instrucciones-titulo { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--color-accent-light); }
+.joven-instrucciones-titulo h2 { margin: 0; font-size: 1.05rem; }
+.joven-instrucciones-titulo span { font-size: .75rem; margin-left: auto; padding: 5px 10px; background: var(--color-accent-muted); border-radius: 20px; }
+.joven-instrucciones ol { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin: 26px 0; }
+.joven-instrucciones li { display: flex; gap: 12px; align-items: flex-start; }
+.joven-instrucciones li > svg { flex-shrink: 0; color: var(--color-accent-light); margin-top: 2px; }
+.joven-instrucciones h3 { font-size: .88rem; margin: 0 0 8px; line-height: 1.5; }
+.joven-instrucciones li p, .joven-instrucciones-nota { font-size: .82rem; color: var(--color-text-secondary); line-height: 1.7; margin: 0; }
+.joven-instrucciones-nota { padding: 14px 16px; background: var(--color-bg-base); border-radius: 10px; }
+.joven-ayuda-examen { margin-bottom: 24px; background: var(--color-bg-raised); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 20px; }
+.joven-ayuda-examen > summary { color: var(--color-accent-light); cursor: pointer; font-size: .82rem; min-height: 24px; }
+.joven-ayuda-examen .joven-instrucciones { margin-top: 16px; padding-top: 16px; }
+.banco-preparacion { margin: 24px 0; padding: 24px; }
+.banco-preparacion h2 { font-size: 1.1rem; margin: 0 0 12px; }
+.banco-preparacion > p { color: var(--color-text-secondary); font-size: .85rem; line-height: 1.7; }
+.banco-preparacion dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; margin: 24px 0; }
+.banco-preparacion dt { font-size: .85rem; font-weight: 600; color: var(--color-accent-light); margin-bottom: 8px; }
+.banco-preparacion dd { margin: 0; font-size: .82rem; line-height: 1.7; color: var(--color-text-secondary); }
+@media (max-width: 600px) {
+  .joven-instrucciones ol, .banco-preparacion dl { grid-template-columns: 1fr; gap: 20px; }
+  .banco-preparacion { padding: 22px 20px; }
+}

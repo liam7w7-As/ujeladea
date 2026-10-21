@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useExamen } from '../../context/ExamenContext'
-import { BookOpen, LogIn, AlertCircle } from 'lucide-react'
+import { LogIn, AlertCircle } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
-  const { loginAdmin } = useExamen()
+  const { loginAdmin, usuario, errorAuth } = useExamen()
   const navigate = useNavigate()
+
+  if (usuario) return <Navigate to="/admin/etapas" replace />
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -18,7 +20,7 @@ export default function Login() {
 
     try {
       await loginAdmin(email, password)
-      navigate('/admin/dashboard')
+      navigate('/admin/etapas')
     } catch (err) {
       setError(
         err.message === 'Invalid login credentials'
@@ -40,17 +42,17 @@ export default function Login() {
               <img src="/logo.png" alt="Torneo Bíblico Logo" style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--color-accent)', boxShadow: 'var(--shadow-glow)' }} />
             </div>
             <h1 className="brand-title">Olimpiadas Bíblicas</h1>
-            <p style={{ color: 'var(--color-accent)', fontSize: '0.95rem', marginTop: '-8px', fontWeight: 600 }}>UJELADEA 2026 — 1ra Etapa HEBREOS</p>
+            <p style={{ color: 'var(--color-accent)', fontSize: '0.95rem', marginTop: '-8px', fontWeight: 600 }}>UJELADEA · Administración de etapas</p>
             <p className="brand-subtitle">UJELADEA</p>
           </div>
 
           <div className="divider" />
 
           {/* Mensaje de error */}
-          {error && (
+          {(error || errorAuth) && (
             <div className="alert alert-error" role="alert" id="login-error">
               <AlertCircle size={16} />
-              <span>{error}</span>
+              <span>{error || errorAuth}</span>
             </div>
           )}
 

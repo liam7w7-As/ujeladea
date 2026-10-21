@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.*
+!.env.example
+
+# Respaldos y bases de ensayo contienen datos privados.
+backups/
+.local-db/
+*.backup
