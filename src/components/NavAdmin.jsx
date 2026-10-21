@@ -20,7 +20,7 @@ export default function NavAdmin() {
       <Link to="/admin/etapas" className="admin-brand"><img src="/logo.png" alt="" /><span>UJELADEA<small>Administración del torneo</small></span></Link>
       <nav aria-label="Administración" className="admin-links">
         <NavLink to="/admin/etapas"><Layers size={17} />Etapas</NavLink>
-        {etapa && <><NavLink to="/admin/dashboard"><LayoutDashboard size={17} />Sesiones</NavLink><NavLink to="/admin/preguntas"><Database size={17} />Preguntas</NavLink><NavLink to="/admin/ranking"><Trophy size={17} />Ranking</NavLink></>}
+        {etapa && <><NavLink to="/admin/dashboard"><LayoutDashboard size={17} />Sesiones</NavLink><NavLink to="/admin/preguntas"><Database size={17} />Preguntas</NavLink><NavLink to="/admin/ranking"><Trophy size={17} />Ranking</NavLink><NavLink to="/admin/premiacion"><Trophy size={17} />Premiación</NavLink></>}
         <NavLink to="/admin/sociedades"><Building2 size={17} />Sociedades</NavLink>
       </nav>
       <button onClick={salir} disabled={saliendo} className="btn btn-secondary admin-logout"><LogOut size={17} />{saliendo ? 'Saliendo…' : 'Salir'}</button>

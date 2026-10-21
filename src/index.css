@@ -780,3 +780,10 @@ a:hover {
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
 
 .joven-siguiente .joven-guardado {margin:0 0 8px}.joven-resumen-guardado {flex:1;min-width:0}.joven-siguiente .joven-guardado>p {color:inherit}
+
+.hash-documento { overflow-wrap: anywhere; }
+.confirmacion-pdf { display: flex; align-items: flex-start; gap: 12px; margin: 20px 0; }
+
+.premiacion-avisos { display: block; }
+.premiacion-avisos ul { padding-left: 20px; margin: 12px 0; }
+.premiacion-avisos p { margin-bottom: 0; }

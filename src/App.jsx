@@ -17,6 +17,7 @@ const BancoPreguntas = lazy(() => import('./pages/admin/BancoPreguntas'))
 const FormPregunta = lazy(() => import('./pages/admin/FormPregunta'))
 const CalificarSesion = lazy(() => import('./pages/admin/CalificarSesion'))
 const Ranking = lazy(() => import('./pages/admin/Ranking'))
+const Premiacion = lazy(() => import('./pages/admin/Premiacion'))
 const GestionSociedades = lazy(() => import('./pages/admin/GestionSociedades'))
 const Registro = lazy(() => import('./pages/joven/Registro'))
 const Espera = lazy(() => import('./pages/joven/Espera'))
@@ -41,6 +42,7 @@ export default function App() {
     <Route path="/admin/preguntas/nueva" element={<Protegida etapa editar><FormPregunta /></Protegida>} />
     <Route path="/admin/preguntas/:id/editar" element={<Protegida etapa editar><FormPregunta /></Protegida>} />
     <Route path="/admin/ranking" element={<Protegida etapa><Ranking /></Protegida>} />
+    <Route path="/admin/premiacion" element={<Protegida etapa><Premiacion /></Protegida>} />
     <Route path="/admin/sociedades" element={<Protegida><GestionSociedades /></Protegida>} />
     <Route path="/admin" element={<Navigate to="/admin/etapas" replace />} />
     <Route path="/examen/:sesionId" element={<Registro />} />

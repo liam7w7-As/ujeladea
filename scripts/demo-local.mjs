@@ -31,7 +31,7 @@ async function como(claims, fn, headers={}) {
     return fn(tx)
   })
 }
-const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar'])
+const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar','admin_premiacion_resumen','admin_premiacion_validar_pdf','admin_premiacion_vincular'])
 async function rpc(nombre,args,claims,headers={}) {
   if(!rpcs.has(nombre))throw new Error('RPC no disponible en la demo')
   const keys=Object.keys(args)
