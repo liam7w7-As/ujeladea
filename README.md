@@ -1,6 +1,6 @@
 # Torneo Bíblico UJELADEA
 
-Preparación local de V2 para la segunda etapa, **Efesios**, con historial separado de **Hebreos**. La aplicación usa React, Vite y Supabase. Las migraciones y los cambios de interfaz aún no se han desplegado en producción.
+Versión 2 para la segunda etapa, **Efesios**, con historial separado de **Hebreos**. La aplicación usa React, Vite y Supabase. Publicada el 21 de octubre de 2026 en [ujeladea.vercel.app](https://ujeladea.vercel.app/admin/login), con las migraciones V2 aplicadas a `torneo-inela`. Hebreos permanece cerrado y Efesios en borrador, sin preguntas reales todavía.
 
 ## Estado de esta entrega
 
@@ -65,4 +65,4 @@ El informe nuevo tiene ejemplos sintéticos reproducibles con `node scripts/veri
 
 ## Antes de desplegar
 
-Probar en Supabase aislado Auth anónimo, RPC/REST, Realtime, Edge Functions y carga con varios dispositivos; preparar el banco y la rúbrica de Efesios y coordinar la migración con la nueva interfaz. Aplicar únicamente estas migraciones interrumpiría el acceso público de V1. Producción de referencia: [ujeladea.vercel.app](https://ujeladea.vercel.app/admin/login), sin cambios en este trabajo. No ejecutar `db reset --linked` sobre producción.
+Preparar el banco y la rúbrica de Efesios, confirmar las reglas del examen y completar la integración y carga con varios dispositivos antes del evento. La creación del entorno aislado se aplazó por indicación del usuario. El despliegue coordinado de V2 ya conserva los datos de Hebreos y restringe su acceso mediante RLS. La IA sigue pendiente de configuración y despliegue de su función; la revisión manual está disponible. No ejecutar `db reset --linked` sobre producción.

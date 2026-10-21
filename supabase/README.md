@@ -1,6 +1,20 @@
 # Base de datos V2: Hebreos y Efesios
 
-Esta entrega prepara y prueba la base de V2 y su panel administrativo por etapas. Las migraciones todavía no están aplicadas al proyecto remoto `torneo-inela`. La API y la interfaz del examen V2 están implementadas y probadas localmente. La integración y carga con la pila Supabase completa quedan pendientes antes de desplegar; el flujo público heredado de V1 no es compatible con estos permisos.
+V2 y su panel por etapas se publicaron el 21 de octubre de 2026, por autorización del usuario. Las cuatro versiones de migraciones están registradas en `torneo-inela` y la interfaz V2 está en Vercel. El flujo público heredado de V1 no es compatible con los nuevos permisos: cualquier reversión debe coordinar también la base de datos.
+
+## Despliegue del 21 de octubre de 2026
+
+- Código de V2: `bc0888b8043f21f4ae394cdf9ef7c8f45b7a5d28`, publicado mediante `main`; Vercel confirmó el despliegue de producción.
+- Antes de migrar se restauró el respaldo privado y se ensayaron las cuatro migraciones. Se compararon en producción las 43 columnas y 12 restricciones del baseline, su vista y los SHA-256 de los seis conjuntos originales.
+- El baseline se registró mediante una migración de verificación, sin recrear tablas. Las tres migraciones V2 se aplicaron con MCP y el historial se alineó con las versiones de los archivos de este repositorio. No se ejecutó un reset remoto.
+- Después de migrar, los seis conjuntos originales y el archivo histórico coinciden exactamente con el respaldo: 27 sociedades, 19 sesiones finalizadas, 184 participantes, 116 preguntas, 7.139 respuestas y 442 eventos. No se corrigieron ni recalcularon respuestas heredadas.
+- Hebreos está cerrado y Efesios en borrador, con cero preguntas. No se subieron las preguntas de demostración.
+- Se conservó el acceso de la única cuenta administrativa heredada asignando el rol en `app_metadata`. Las sesiones previas necesitan volver a iniciar sesión para recibir ese rol en su token. El usuario habilitó el acceso anónimo y se confirmó mediante la API de Auth.
+- Todas las tablas públicas tienen RLS. Las consultas REST sin autenticar a preguntas, respuestas, etapas y archivos se rechazan. No hay funciones `SECURITY DEFINER` en `public`.
+- La página de ingreso en vivo se comprobó en Edge, escritorio y móvil: sin errores JavaScript, solicitudes fallidas ni desbordamiento horizontal; las rutas administrativas redirigen al ingreso cuando no hay sesión.
+- La integración completa del examen, Realtime y la carga entre dispositivos siguen pendientes. No se crearon sesiones ni intentos de prueba en producción. La función de sugerencias de IA aún no está desplegada/configurada; la revisión manual no depende de ella.
+
+Los informes de restauración, hashes y comprobaciones del despliegue se guardaron fuera de Git en `.local-db/despliegue/`; el respaldo con datos personales permanece fuera del repositorio. El diagnóstico de seguridad solo señaló la [tabla privada de códigos sin políticas](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) (acceso deliberadamente denegado para clientes) y la [protección de contraseñas filtradas deshabilitada en Auth](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). Los índices recién creados aún no tienen estadísticas de uso.
 
 ## Migraciones
 
@@ -110,13 +124,13 @@ Las variables de servidor están documentadas en `supabase/functions/.env.exampl
 - El respaldo original volvió a restaurarse con todas las migraciones: se conservaron los 7139 registros de respuestas y los demás datos originales de Hebreos.
 - Los ensayos PGlite usan una sola conexión. No acreditan contención entre conexiones, capacidad para todos los dispositivos del evento ni funcionamiento real de GoTrue, PostgREST, Realtime o Edge Functions.
 
-Antes del despliegue se necesita una instancia Supabase aislada para probar la pila completa y la carga simultánea. En local, `enable_anonymous_sign_ins` está habilitado y el límite de accesos anónimos se configura en 500 por hora por IP para permitir un ensayo de varios dispositivos en la misma red. Para el evento deben revisarse capacidad, controles de abuso y límites según su red; estos ajustes no se han aplicado a producción.
+Antes del evento queda pendiente probar la pila Supabase completa y la carga simultánea en un entorno aislado. En local, `enable_anonymous_sign_ins` está habilitado y el límite de accesos anónimos se configura en 500 por hora por IP para permitir un ensayo de varios dispositivos en la misma red. Para el evento deben revisarse capacidad, controles de abuso y límites según su red; los límites personalizados de la configuración local no se han aplicado a producción.
 
 El respaldo de Hebreos conserva el alcance original (tablas públicas V1 y código). Los resultados futuros de V2 añaden referencias a Auth: su respaldo/restauración completo debe incluir las identidades de Auth mediante el procedimiento soportado de Supabase; no basta con reutilizar el exportador público de V1. La FK evita borrar una identidad que todavía tiene intentos.
 
 Referencias oficiales: [acceso anónimo](https://supabase.com/docs/guides/auth/auth-anonymous), [autorización de Edge Functions](https://supabase.com/docs/guides/functions/auth-headers), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
-La integración remota y la carga simultánea se aplazaron por indicación del usuario. La creación del proyecto de pruebas fue rechazada por el cupo gratuito; no se creó ninguna instancia ni se modificó `torneo-inela` o el proyecto independiente `ujeladea`. Realtime y el resto de la pila real siguen pendientes de validación antes del despliegue.
+La integración remota y la carga simultánea se aplazaron por indicación del usuario. El cupo gratuito impidió crear el proyecto de pruebas; no se creó ninguna instancia ni se tocó el proyecto independiente `ujeladea`. Posteriormente, el usuario autorizó el despliegue en producción descrito al inicio. Realtime y el examen con varios dispositivos siguen pendientes de validación completa antes del evento.
 
 ## Estabilidad y rendimiento del panel
 
