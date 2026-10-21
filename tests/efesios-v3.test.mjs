@@ -138,7 +138,7 @@ test('la migración V3 se detiene antes de modificar una etapa que ya fue activa
   await db.query("INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje) VALUES($1,'multiple','Prueba','[\"A\",\"B\"]','A',2)",[e])
   await db.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[e])
   const {readFile}=await import('node:fs/promises')
-  await assert.rejects(db.exec(await readFile(new URL('../supabase/migrations/20261021200037_v3_efesios_supervision_evaluacion.sql',import.meta.url),'utf8')),/ya tiene actividad/)
+  await assert.rejects(db.exec(await readFile(new URL('../supabase/migrations/20261021211025_v3_efesios_supervision_evaluacion.sql',import.meta.url),'utf8')),/ya tiene actividad/)
   await db.exec('ROLLBACK')
   assert.equal((await db.query("SELECT count(*)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name='preguntas' AND column_name='rubrica'")).rows[0].n,0)
  }finally{await db.close()}

@@ -1,6 +1,6 @@
 # Base de datos V2: Hebreos y Efesios
 
-V2 y su panel por etapas se publicaron el 21 de octubre de 2026, por autorización del usuario. Las cuatro versiones de migraciones están registradas en `torneo-inela` y la interfaz V2 está en Vercel. El flujo público heredado de V1 no es compatible con los nuevos permisos: cualquier reversión debe coordinar también la base de datos.
+V2 y su panel por etapas se publicaron el 21 de octubre de 2026, por autorización del usuario. Las seis versiones de migraciones están registradas en `torneo-inela` y la interfaz V2 está en Vercel. El flujo público heredado de V1 no es compatible con los nuevos permisos: cualquier reversión debe coordinar también la base de datos.
 
 ## Despliegue del 21 de octubre de 2026
 
@@ -146,9 +146,9 @@ Verificaciones: 85 pruebas de Node, 24 comprobaciones del panel y 21 del examen.
 
 Referencias: [Realtime y publicaciones](https://supabase.com/docs/guides/realtime/subscribing-to-database-changes), [carga bajo demanda en React](https://react.dev/reference/react/lazy).
 
-## Modelo de Efesios y supervisión preparado en local
+## Modelo de Efesios y supervisión publicado
 
-La migración `20261021200037_v3_efesios_supervision_evaluacion.sql` todavía no se ha aplicado a producción. Se detiene antes de cambiar una etapa de Efesios que ya esté activa o tenga intentos; requiere revisar esos datos antes de desplegar. No se modifica una migración publicada ni se reescribe el archivo de Hebreos.
+La migración `20261021211025_v3_efesios_supervision_evaluacion.sql` está aplicada a producción desde el 21 de octubre de 2026. Se detiene antes de cambiar una etapa de Efesios que ya esté activa o tenga intentos; requiere revisar esos datos antes de desplegar. No se modifica una migración publicada ni se reescribe el archivo de Hebreos.
 
 Distribución aprobada: 27 preguntas múltiples de 2 puntos, 10 abiertas de 3 y 8 de contexto de 4. La selección es aleatoria dentro de cada tipo y vuelve a mezclar el orden. Si el banco solo contiene el mínimo por tipo, todos reciben el mismo conjunto con orden distinto; para variar también el contenido hacen falta más preguntas revisadas. Cada asignación conserva enunciado, opciones, referencia, rúbrica y valor. La selección no calibra por sí sola la dificultad: corresponde al banco pastoral mantener preguntas comparables. No se fijó una fecha exacta de noviembre.
 
@@ -168,3 +168,13 @@ El ensayo local del respaldo incluye esta migración y conserva todos los valore
 
 
 En esta revisión el bloqueo de Hebreos también se aplica a las políticas RLS de las tablas y del archivo para el rol de la aplicación. Sus metadatos siguen visibles como etapa bloqueada; el propietario de la base conserva el archivo y puede verificar/restaurar sus datos. No se borró el historial.
+
+## Premiación y conservación de los resultados de Hebreos
+
+`20261021211034_premiacion_acumulada_historial.sql` está aplicada en `torneo-inela`. Crea cuatro tablas privadas con RLS, sin acceso directo del cliente, y tres RPC administrativas invoker con lógica privilegiada limitada al esquema privado. El resumen V1, la declaración de comparación del PDF y la auditoría son inmutables. Las vinculaciones de identidad tienen unicidad, control de revisión y registro de sus cambios. No se actualiza ninguna calificación histórica ni el archivo original.
+
+Las versiones 20261021211025 y 20261021211034 son las asignadas por MCP al aplicar las migraciones. Los archivos del repositorio se renombraron para coincidir con ellas; el historial interno de Supabase se dejó intacto.
+
+En producción se compararon las huellas de los seis conjuntos originales antes/después y coincidieron con el archivo y el respaldo privado. También coincidió el resumen derivado con el generado localmente mediante el código V1 conservado: 19 sociedades y 184 participantes, con 7.139 respuestas. La comprobación del PDF original del usuario permanece pendiente; no se insertó una validación por cuenta del agente. La función administrativa devuelve solo el resumen necesario, mientras RLS mantiene bloqueados las sesiones y los archivos crudos de Hebreos.
+
+La interfaz acumula 50/50 y conserva las notas de cada etapa. Las identidades se revisan manualmente; un participante de Hebreos no se puede vincular a dos de Efesios. El PDF se procesa en el dispositivo únicamente para obtener su huella; el administrador declara haber contrastado sus resultados. No se infiere el contenido del PDF ni se certifica automáticamente su coincidencia. La carga con 150 dispositivos sigue pendiente.

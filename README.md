@@ -2,9 +2,9 @@
 
 Versión 2 para la segunda etapa, **Efesios**, con historial separado de **Hebreos**. La aplicación usa React, Vite y Supabase. Publicada el 21 de octubre de 2026 en [ujeladea.vercel.app](https://ujeladea.vercel.app/admin/login), con las migraciones V2 aplicadas a `torneo-inela`. Hebreos permanece cerrado y Efesios en borrador, sin preguntas reales todavía.
 
-## Cambios de Efesios preparados en local
+## Entrega de Efesios y premiación
 
-Esta revisión todavía no está publicada ni aplicada a Supabase remoto. Producción conserva el despliegue anterior. La migración nueva es `20261021200037_v3_efesios_supervision_evaluacion.sql` y debe publicarse de forma coordinada con la interfaz.
+Las seis migraciones están aplicadas a `torneo-inela`. Esta entrega incorpora `20261021211025_v3_efesios_supervision_evaluacion.sql` y `20261021211034_premiacion_acumulada_historial.sql`; la interfaz se publica mediante `main` y la rama de trabajo se llama `etapa-2`. Los archivos locales usan las versiones asignadas por Supabase, cuyo historial interno se dejó intacto.
 
 - 45 preguntas aleatorias por intento: 27 múltiples (2 puntos), 10 abiertas (3) y 8 de contexto (4). Máximo 116, nota normalizada sobre 100 y orden mezclado persistente por joven.
 - El banco se valida por cupo y valor; las preguntas escritas activas necesitan rúbrica. Al activar, banco y criterios quedan fijos. Los pastores aún deben incorporar el contenido real y revisar su dificultad y versión bíblica.
@@ -25,16 +25,16 @@ npm run dev:demo
 
 ## Base V2 ya publicada
 
-- Panel inicial de etapas, con preparación, configuración, activación y cierre con confirmación. La revisión local simplifica este inicio para entrar directamente a Efesios.
+- Panel inicial de etapas, con preparación, configuración, activación y cierre con confirmación. Esta revisión simplifica este inicio para entrar directamente a Efesios.
 - Sesiones, preguntas, resultados y ranking dentro de la etapa seleccionada.
-- Respaldo histórico inmutable con nombres, respuestas y puntajes originales. La revisión local bloquea el acceso a Hebreos desde la app.
+- Respaldo histórico inmutable con nombres, respuestas y puntajes originales. Esta revisión bloquea el acceso a Hebreos desde la app.
 - Formularios de preguntas y sesiones con `etapa_id`; duración y cantidad de preguntas tomadas de la etapa.
 - Exportaciones PDF con identificación de la etapa y logo reducido a 320 px.
 - Base del banco para incorporar preguntas revisadas por los pastores: opción múltiple, respuesta abierta y contexto bíblico, con referencia y puntaje.
 - Instrucciones en la espera y ayuda desplegable durante el examen: confirmación, guardado, tiempo y recuperación.
 - Acceso administrativo mediante `app_metadata.role = "admin"`. El rol se asigna desde una operación de administración de Supabase; `user_metadata` no concede acceso.
 
-El bloque del examen está implementado localmente: recuperación desde el servidor, orden de preguntas persistente, borradores en dispositivo y servidor, confirmación idempotente, vencimiento validado y recuperación autorizada por el jurado en otro dispositivo. La opción múltiple se corrige en servidor y la calificación manual es transaccional. El máximo V2 incluye también las preguntas no respondidas. El informe de Efesios para el jurado y la directiva incluye participación, avance, notas pendientes, máximo de todas las asignaciones y el cálculo de los porcentajes. Se identifica como provisional mientras la etapa esté abierta o existan incidencias en los totales; Hebreos conserva su archivo histórico; la revisión local no ofrece entrada a esa etapa.
+El bloque del examen está implementado localmente: recuperación desde el servidor, orden de preguntas persistente, borradores en dispositivo y servidor, confirmación idempotente, vencimiento validado y recuperación autorizada por el jurado en otro dispositivo. La opción múltiple se corrige en servidor y la calificación manual es transaccional. El máximo V2 incluye también las preguntas no respondidas. El informe de Efesios para el jurado y la directiva incluye participación, avance, notas pendientes, máximo de todas las asignaciones y el cálculo de los porcentajes. Se identifica como provisional mientras la etapa esté abierta o existan incidencias en los totales; Hebreos conserva su archivo histórico; esta revisión no ofrece entrada a esa etapa.
 
 ## Revisar una demo local
 
@@ -90,4 +90,12 @@ El informe nuevo tiene ejemplos sintéticos reproducibles con `node scripts/veri
 
 ## Antes de desplegar
 
-Preparar el banco y la rúbrica de Efesios, confirmar las reglas del examen y completar la integración y carga con varios dispositivos antes del evento. La creación del entorno aislado se aplazó por indicación del usuario. El despliegue anterior de V2 conserva los datos de Hebreos. La nueva restricción de lectura histórica para administradores de la app está preparada en la migración local pendiente. La IA sigue pendiente de configuración y despliegue de su función; la revisión manual está disponible. No ejecutar `db reset --linked` sobre producción.
+Preparar el banco y la rúbrica de Efesios, confirmar las reglas del examen y completar la integración y carga con varios dispositivos antes del evento. La creación del entorno aislado se aplazó por indicación del usuario. El despliegue anterior de V2 conserva los datos de Hebreos. La restricción de lectura histórica está aplicada. El resumen de resultados de Hebreos se consulta exclusivamente desde Premiación. La IA sigue pendiente de configuración y despliegue de su función; la revisión manual está disponible. No ejecutar `db reset --linked` sobre producción.
+
+## Premiación de las dos etapas
+
+`/admin/premiacion` combina el 50 % de Hebreos con el 50 % de Efesios, conservando en columnas separadas sus resultados y métodos. Hebreos tiene un resumen inmutable derivado del archivo V1, con sus puntos, máximos, porcentajes, redondeo y descuentos originales. No se limpian respuestas repetidas ni se recalifican exámenes antiguos.
+
+La coincidencia con el PDF de resultados original requiere una comprobación manual. El administrador selecciona el PDF en su equipo, revisa las tablas y registra la declaración y su SHA-256; el archivo no se sube ni se interpreta automáticamente. El acumulado permanece provisional mientras falte esa comprobación, el cierre/revisión de Efesios o la verificación de identidades. Las personas se vinculan uno a uno manualmente, con revisión y auditoría; una coincidencia de nombre no crea una vinculación. Las ausencias no se transforman en ceros ni reciben posición general. Quienes solo rindieron Efesios conservan su resultado de esa etapa.
+
+Verificación de esta entrega: 106 pruebas de Node, cinco comprobaciones del flujo de premiación en Edge y revisión móvil. `scripts/verify-hebreos-results.mjs --backup-dir RUTA_PRIVADA --report RUTA_JSON` ejecuta la función original de V1 que alimentaba el PDF y la contrasta con el resumen nuevo. En el ensayo privado coincidieron las 19 sociedades y los 184 participantes; las 7.139 respuestas y todos los valores originales permanecieron intactos. Esto no certifica el archivo PDF que conserva el usuario, que aún debe contrastarse. Los informes de huellas y producción permanecen en `.local-db/despliegue/`, fuera de Git.
