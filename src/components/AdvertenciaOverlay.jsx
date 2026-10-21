@@ -27,25 +27,25 @@ export default function AdvertenciaOverlay({ isOpen, onContinuar }) {
         width: '100%',
         background: 'var(--color-bg-base)',
         color: 'var(--color-text-primary)',
-        border: '2px solid var(--color-error)',
-        boxShadow: '0 10px 40px rgba(231, 76, 60, 0.2)'
+        border: '2px solid var(--color-accent)',
+        boxShadow: '0 10px 40px rgba(201,168,76,.15)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-md)' }}>
           <div style={{ background: 'rgba(231, 76, 60, 0.1)', padding: '16px', borderRadius: '50%' }}>
-            <AlertTriangle size={48} color="var(--color-error)" />
+            <AlertTriangle size={48} color="var(--color-accent)" />
           </div>
         </div>
 
-        <h2 style={{ fontSize: '1.5rem', marginBottom: 'var(--space-sm)' }}>Saliste de la pantalla</h2>
+        <h2 style={{ fontSize: '1.5rem', marginBottom: 'var(--space-sm)' }}>Vuelve al examen</h2>
         <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
           Tu progreso se conserva.
-          Vuelve al examen para continuar. El evento se intenta enviar al encargado sin interrumpir tu progreso.
+          Vuelve al examen para continuar. Continuarás desde tu pregunta guardada. Si hace falta autorización, avisa al moderador.
         </p>
 
         <button
           onClick={onContinuar}
           className="btn btn-primary"
-          style={{ width: '100%', background: 'var(--color-error)' }}
+          style={{ width: '100%', background: 'var(--color-accent)', color: 'var(--color-bg-deep)' }}
         >
           <Maximize size={18} />
           Continuar mi examen

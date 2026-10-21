@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit2, Trash2, Search, Building2, Check, X, Users, MapPin } from 'lucide-react'
+import { Plus, Edit2, Trash2, Search, Building2, Check, X, MapPin } from 'lucide-react'
 import Modal from '../../components/Modal'
 import NavAdmin from '../../components/NavAdmin'
 
@@ -17,7 +17,7 @@ export default function GestionSociedades() {
   // Modal formulario
   const [modalForm, setModalForm] = useState(false)
   const [sociedadActual, setSociedadActual] = useState(null)
-  const [form, setForm] = useState({ nombre: '', iglesia: '', total_censo: '' })
+  const [form, setForm] = useState({ nombre: '', iglesia: '' })
   const [guardando, setGuardando] = useState(false)
 
   const cargarSociedades = useCallback(() => {
@@ -84,13 +84,13 @@ export default function GestionSociedades() {
 
   const abrirNuevo = () => {
     setSociedadActual(null)
-    setForm({ nombre: '', iglesia: '', total_censo: '' })
+    setForm({ nombre: '', iglesia: '' })
     setModalForm(true)
   }
 
   const abrirEditar = (soc) => {
     setSociedadActual(soc)
-    setForm({ nombre: soc.nombre, iglesia: soc.iglesia, total_censo: soc.total_censo || '' })
+    setForm({ nombre: soc.nombre, iglesia: soc.iglesia })
     setModalForm(true)
   }
 
@@ -102,7 +102,6 @@ export default function GestionSociedades() {
       const payload = {
         nombre: form.nombre,
         iglesia: form.iglesia,
-        total_censo: form.total_censo ? parseInt(form.total_censo) : null
       }
 
       if (sociedadActual) {
@@ -244,12 +243,6 @@ export default function GestionSociedades() {
                         <MapPin size={16} color="var(--color-text-muted)" />
                         {s.iglesia}
                       </div>
-                      {s.total_censo ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Users size={16} color="var(--color-text-muted)" />
-                          Censo: <strong style={{ color: 'var(--color-text-primary)' }}>{s.total_censo}</strong> jóvenes
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 )
@@ -275,12 +268,6 @@ export default function GestionSociedades() {
             <div className="form-group">
               <label className="form-label">Iglesia de Origen</label>
               <input type="text" className="form-input" required value={form.iglesia} onChange={e => setForm({...form, iglesia: e.target.value})} placeholder="Ej: Central" />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Total del Censo <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</span></label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" className="form-input" value={form.total_censo} onChange={e => setForm({...form, total_censo: e.target.value.replace(/[^0-9]/g, '')})} placeholder="Ej: 15" />
-              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Solo informativo. Puedes dejarlo vacío.</p>
             </div>
             
             <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-xl)' }}>

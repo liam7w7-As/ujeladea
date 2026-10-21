@@ -16,6 +16,7 @@ export class SeguridadExamen {
     this.fullscreen = () => { if (!document.fullscreenElement) this.registrar('salio_fullscreen', true) }
     this.contexto = () => this.registrar('intento_clic_derecho')
     this.teclas = e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') this.registrar('intento_copiar') }
+    this.pegar = () => this.registrar('intento_pegar')
     this.online = () => { void this.enviar() }
   }
   iniciar() {
@@ -23,6 +24,7 @@ export class SeguridadExamen {
     document.addEventListener('visibilitychange', this.visibilidad)
     document.addEventListener('fullscreenchange', this.fullscreen)
     document.addEventListener('contextmenu', this.contexto)
+    document.addEventListener('paste', this.pegar)
     document.addEventListener('keydown', this.teclas)
     window.addEventListener('online', this.online)
     this.timer = setInterval(() => { void this.enviar() }, 3000)
@@ -55,6 +57,7 @@ export class SeguridadExamen {
     document.removeEventListener('visibilitychange', this.visibilidad)
     document.removeEventListener('fullscreenchange', this.fullscreen)
     document.removeEventListener('contextmenu', this.contexto)
+    document.removeEventListener('paste', this.pegar)
     document.removeEventListener('keydown', this.teclas)
     window.removeEventListener('online', this.online)
     void this.enviar()

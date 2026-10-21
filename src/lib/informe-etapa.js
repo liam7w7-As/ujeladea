@@ -49,24 +49,24 @@ export function prepararInformeEtapa({ etapa, datos, emitidoAt = new Date(), eje
       pendientes, discrepancias, registrosFinalizados,
     },
     sociedades: ranking.rankingSociedades.map(s => ({
-      sesionId: s.sesionId, sociedad: s.sociedad, iglesia: s.iglesia,
+      sesionId: s.sesionId, posicion:s.posicion, sociedad: s.sociedad, iglesia: s.iglesia,
       rindieron: s.rindieron, puntajeObtenido: s.puntajeObtenido, puntajeMaximo: s.puntajeMaximo,
       porcentajeBruto: s.porcentajeBruto, porcentaje: s.porcentaje, penalizacionPorcentaje: s.penalizacionPorcentaje,
       totalAlertas: s.totalAlertas, pendientes: s.pendientesIA,
     })),
     jovenes: ranking.topJovenes.map(j => ({
-      nombre: j.nombre, sociedad: j.sociedad, puntaje: j.puntaje, maximo: j.puntajeMax,
+      posicion:j.posicion, nombre: j.nombre, sociedad: j.sociedad, puntaje: j.puntaje, maximo: j.puntajeMax,
       efectividad: j.efectividad, duracion: j.duracionTexto,
       pendientes: datos.respuestas.filter(r => r.participante_id === j.id && (r.puntaje_obtenido === null || r.calificado_por === 'pendiente_ia')).length,
     })),
     metodologia: [
-      'Alcance: una fila por sesión finalizada. Si una sociedad tiene varias sesiones, se muestran por separado. Las sesiones abiertas y los convocados sin registro se indican en el resumen.',
-      'Máximo posible: suma del valor de todas las preguntas asignadas a cada intento, incluidas las que quedaron sin responder. Los textos y valores proceden de la asignación guardada al iniciar.',
-      'Opción múltiple: puntaje completo si coincide con la referencia; cero si no coincide. Respuestas abiertas y de contexto: calificación del jurado. La IA solo propone y el jurado confirma.',
-      'Porcentaje base: puntaje obtenido / máximo posible, redondeado al entero. Ajuste vigente de la app por sesión: 20 a 29 alertas restan 5 puntos porcentuales; 30 a 39 restan 10; 40 o más restan 15. El resultado no baja de cero. Se cuentan registros de eventos.',
-      'Orden de sesiones: porcentaje ajustado, promedio de puntos por participante y menor cantidad de alertas. Orden individual: puntaje, efectividad, menor duración cuando ambos tiempos están disponibles y menor cantidad de alertas. Ante igualdad se usa el identificador para mantener un orden estable.',
-      'Las alertas son señales del navegador que requieren interpretación del jurado; por sí solas no acreditan una falta. Este informe expone el cálculo actual y no aprueba por sí mismo el reglamento ni una rúbrica pastoral.',
-      'Mientras la etapa siga abierta, existan notas pendientes o se detecten diferencias en los totales, las posiciones y porcentajes son provisionales. Los puntajes parciales no deben usarse para declarar ganadores.',
+      'Una fila por sociedad, consolidando todas sus sesiones finalizadas. Solo se incluyen intentos con preguntas asignadas; los abandonos conservan su resultado.',
+      'Nota individual: 100 por puntos obtenidos dividido entre el máximo de todas las preguntas asignadas, también las no respondidas. Los snapshots conservan los valores y rúbricas originales.',
+      'Nota de sociedad: promedio de las notas individuales, con el mismo peso por joven. Se conserva precisión para ordenar y se muestran dos decimales.',
+      'No se usa censo ni penalización automática por alertas. Las señales del navegador requieren revisión del moderador.',
+      'Opción múltiple: corrección automática. Respuestas abiertas y de contexto: criterios de la rúbrica y revisión del jurado. La IA solo sugiere.',
+      'Los empates comparten posición. La velocidad, los eventos técnicos y el tamaño de la sociedad no otorgan ventajas ni descuentos.',
+      'Las posiciones siguen siendo provisionales mientras la etapa esté abierta, haya notas pendientes o existan diferencias en los totales.',
     ],
   }
 }

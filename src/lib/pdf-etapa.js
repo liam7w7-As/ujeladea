@@ -64,19 +64,17 @@ export function crearDocumentoInformeEtapa(informe, { logo } = {}) {
     ['Preguntas asignadas',String(r.asignadas),'Respuestas confirmadas',String(r.respondidas)],
     ['Preguntas sin responder',String(r.sinResponder),'Respuestas sin calificar',String(r.pendientes)],
   ],[64,25,64,25])
-  titulo('Resultados por sesión finalizada')
-  parrafo('Orden orientativo mientras existan pendientes. Los valores base y ajustado permiten revisar cómo se obtuvo el porcentaje.',8)
-  if (!informe.sociedades.length) parrafo('Todavía no hay sesiones finalizadas en esta etapa.')
-  else tabla(['Pos.','Sociedad / iglesia','Jóv.','Puntos / máximo','Base','Ajustado','Alertas / ajuste','Pend.'],informe.sociedades.map((s,i)=>[
-    String(i+1),s.sociedad+'\n'+s.iglesia,String(s.rindieron),s.puntajeObtenido+' / '+s.puntajeMaximo,
-    s.puntajeMaximo ? s.porcentajeBruto+'%' : 'N/D',s.puntajeMaximo ? s.porcentaje+'%' : 'N/D',
-    s.totalAlertas+' / -'+s.penalizacionPorcentaje+' pp',String(s.pendientes),
-  ]),[12,49,15,28,16,18,24,16])
+  titulo('Rendimiento por sociedad')
+  parrafo('Promedio de las notas individuales sobre 100. Sin descuentos por alertas ni criterio de censo.',8)
+  if(!informe.sociedades.length) parrafo('Todavía no hay sociedades evaluadas.')
+  else tabla(['Pos.','Sociedad / iglesia','Evaluados','Puntos / máximo','Nota / 100','Pend.'],informe.sociedades.map((s,i)=>[
+    String(s.posicion??i+1),s.sociedad+'\n'+s.iglesia,String(s.rindieron),s.puntajeObtenido+' / '+s.puntajeMaximo,s.porcentaje.toFixed(2),String(s.pendientes),
+  ]),[12,58,23,34,29,22])
   titulo('Hasta diez participantes según el orden actual')
   parrafo('Solo se incluyen intentos de sesiones finalizadas. Una nota pendiente conserva su carácter parcial aunque aparezca en este listado.',8)
   if (!informe.jovenes.length) parrafo('Todavía no hay participantes evaluados en sesiones finalizadas.')
   else tabla(['Pos.','Participante / sociedad','Puntos / máximo','Efectividad','Duración','Pend.'],informe.jovenes.map((j,i)=>[
-    String(i+1),j.nombre+'\n'+j.sociedad,j.puntaje+' / '+j.maximo,j.maximo ? j.efectividad+'%' : 'N/D',j.duracion,String(j.pendientes),
+    String(j.posicion??i+1),j.nombre+'\n'+j.sociedad,j.puntaje+' / '+j.maximo,j.maximo ? j.efectividad.toFixed(2)+' / 100' : 'N/D',j.duracion,String(j.pendientes),
   ]),[12,66,30,26,26,18])
   espacio(100)
   titulo('Cómo interpretar este informe')

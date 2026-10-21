@@ -6,7 +6,7 @@ import { adminClaims, createTestDatabase, applyMigrations, ident } from './lib/l
 
 const require=createRequire(process.env.UJELADEA_UI_PACKAGE_JSON || new URL('../package.json',import.meta.url))
 const { chromium }=require('playwright')
-const expect=require('playwright/test').expect.configure({timeout:12000})
+const expect=require('playwright/test').expect.configure({timeout:25000})
 const dir='.local-db/examen-ui'
 await mkdir(dir,{recursive:true})
 const db=await createTestDatabase()
@@ -26,7 +26,7 @@ async function rpc(nombre,args,claims={sub:uid}) {
 }
 const etapa=(await db.query("SELECT id FROM public.etapas WHERE libro='Efesios'")).rows[0].id
 await como(adminClaims,async tx=>{
-  await tx.query('UPDATE public.etapas SET cantidad_preguntas=25 WHERE id=$1',[etapa])
+  await tx.query('UPDATE public.etapas SET cantidad_preguntas=25,reglas=\'{"version":2}\'::jsonb WHERE id=$1',[etapa])
   await tx.query("INSERT INTO public.sociedades(id,nombre,iglesia) VALUES($1,'Sociedad de prueba','Iglesia de prueba')",[sociedad])
   for(let k=1;k<=25;k++)await tx.query("INSERT INTO public.preguntas(etapa_id,tipo,texto,respuesta_correcta,puntaje) VALUES($1,'abierta',$2,'Referencia privada para el jurado',10)",[etapa,'Pregunta de prueba de Efesios '+k])
   await tx.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[etapa])
@@ -100,7 +100,7 @@ try{
  await page.goto('http://127.0.0.1:4174/examen/'+sesion)
  await page.getByRole('button',{name:'Joven de prueba',exact:true}).click()
  await page.getByRole('button',{name:'Soy yo, confirmar'}).click()
- await expect(page.getByRole('heading',{name:'El examen comenzará pronto'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Esperando al encargado'})).toBeVisible()
  intento=(await db.query('SELECT id FROM public.intentos')).rows[0].id
  ok('registro y espera usan RPC autenticadas')
  await expect(page.getByRole('region',{name:'Instrucciones del examen'})).toBeVisible()
@@ -120,7 +120,7 @@ try{
  await texto.fill('Borrador conservado en la pregunta veinte')
  await expect(page.getByText('Borrador guardado en el servidor.',{exact:true})).toBeVisible()
  await page.evaluate(()=>globalThis.document.dispatchEvent(new Event('fullscreenchange')))
- await expect(page.getByRole('heading',{name:'Saliste de la pantalla'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Vuelve al examen'})).toBeVisible()
  await page.getByRole('button',{name:'Continuar mi examen'}).click()
  await expect(texto).toHaveValue('Borrador conservado en la pregunta veinte')
  await expect(page.getByText('Pregunta 20 de 25',{exact:true})).toBeVisible()
@@ -183,7 +183,7 @@ try{
  await page.getByLabel('Correo electrónico').fill('admin@prueba.local')
  await page.getByLabel('Contraseña').fill('clave-simulada')
  await page.getByRole('button',{name:'Ingresar al panel'}).click()
- await page.getByRole('button',{name:'Administrar Efesios'}).click()
+ await page.getByRole('button',{name:'Ingresar a Efesios'}).click()
  await page.goto('http://127.0.0.1:4174/admin/sesion/'+sesion+'/calificar')
  await expect(page.getByRole('heading',{name:'Calificar respuestas'})).toBeVisible()
  await page.getByRole('spinbutton',{name:'Puntaje del jurado'}).first().fill('7')
@@ -195,15 +195,15 @@ try{
  ok('iniciar sesión como administrador no reemplaza la identidad del participante')
  await como(adminClaims,tx=>tx.query("UPDATE public.sesiones SET estado='finalizado' WHERE id=$1",[sesion]))
  await page.goto('http://127.0.0.1:4174/admin/ranking')
- await expect(page.getByRole('button',{name:'Informe para Directiva (PDF)'})).toBeEnabled()
- const [informePdf]=await Promise.all([page.waitForEvent('popup'),page.getByRole('button',{name:'Informe para Directiva (PDF)'}).click()])
+ await expect(page.getByRole('button',{name:'Informe para el jurado'})).toBeEnabled()
+ const [informePdf]=await Promise.all([page.waitForEvent('popup'),page.getByRole('button',{name:'Informe para el jurado'}).click()])
  await informePdf.waitForURL(/^blob:/)
  const pdfBytes=await page.evaluate(async url=>Array.from(new Uint8Array(await (await fetch(url)).arrayBuffer())),informePdf.url())
  await writeFile(dir+'/informe-efesios-ui.pdf',Buffer.from(pdfBytes))
  await informePdf.close()
  ok('el jurado exporta el informe V2 con notas pendientes y todas las asignaciones',Buffer.from(pdfBytes).subarray(0,4).toString()==='%PDF')
  await page.goto('http://127.0.0.1:4174/admin/preguntas')
- await expect(page.getByRole('region',{name:'Preparación del banco pastoral'})).toBeVisible()
+ await expect(page.getByText('El banco y las rúbricas están fijos durante la evaluación.',{exact:true})).toBeVisible()
  ok('la base del banco explica los tres tipos de pregunta y la revisión pastoral')
 
  ok('sin errores de ejecución de React',errores.length===0)

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { adminClaims, applyMigrations, createTestDatabase, ident } from './lib/local-database.mjs'
 
 // Vista interactiva aislada. No carga .env ni usa una URL, clave o dato remoto.
-const PORT=5173, ORIGIN='http://127.0.0.1:'+PORT
+const PORT=Number(process.env.UJELADEA_DEMO_PORT||5173), ORIGIN='http://127.0.0.1:'+PORT
 const EMAIL='admin@demo.local', PASSWORD='DemoLocal2026!'
 const db=await createTestDatabase()
 await applyMigrations(db,{through:'20261020193851'})
@@ -16,31 +16,35 @@ await db.query("INSERT INTO public.preguntas(id,tipo,texto,opciones,respuesta_co
 await db.query("INSERT INTO public.respuestas(participante_id,pregunta_id,respuesta_dada,puntaje_obtenido,calificado_por) VALUES($1,$2,'Opción de muestra A',10,'sistema')",[jovenH,preguntaH])
 await applyMigrations(db,{existingV1:true})
 await db.query('INSERT INTO auth.users(id) VALUES($1)',[adminClaims.sub])
-const alumno=randomUUID(), otroAlumno=randomUUID()
-await db.query('INSERT INTO auth.users(id) VALUES($1),($2)',[alumno,otroAlumno])
+const alumno=randomUUID(), otroAlumno=randomUUID(),alumnoFinal=randomUUID()
+await db.query('INSERT INTO auth.users(id) VALUES($1),($2),($3)',[alumno,otroAlumno,alumnoFinal])
 const claimsAlumno={sub:alumno,is_anonymous:true,role:'authenticated',app_metadata:{}}
 
-async function como(claims, fn) {
+const instancias=new Map()
+const claimsFinal={sub:alumnoFinal,is_anonymous:true}
+async function como(claims, fn, headers={}) {
   return db.transaction(async tx=>{
     await tx.exec('SET LOCAL ROLE '+(claims.sub?'authenticated':'anon'))
     await tx.query("SELECT set_config('request.jwt.claims',$1,true)",[JSON.stringify(claims)])
+    if(!instancias.has(claims.sub))instancias.set(claims.sub,randomUUID())
+    await tx.query("SELECT set_config('request.headers',$1,true)",[JSON.stringify({'x-examen-instancia':instancias.get(claims.sub),...headers})])
     return fn(tx)
   })
 }
-const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion'])
-async function rpc(nombre,args,claims) {
+const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar'])
+async function rpc(nombre,args,claims,headers={}) {
   if(!rpcs.has(nombre))throw new Error('RPC no disponible en la demo')
   const keys=Object.keys(args)
-  return como(claims,async tx=>(await tx.query('SELECT public.'+ident(nombre)+'('+keys.map((k,i)=>ident(k)+' => $'+(i+1)).join(',')+') AS dato',keys.map(k=>typeof args[k]==='object'&&args[k]!==null?JSON.stringify(args[k]):args[k]))).rows[0].dato)
+  return como(claims,async tx=>(await tx.query('SELECT public.'+ident(nombre)+'('+keys.map((k,i)=>ident(k)+' => $'+(i+1)).join(',')+') AS dato',keys.map(k=>typeof args[k]==='object'&&args[k]!==null?JSON.stringify(args[k]):args[k]))).rows[0].dato,headers)
 }
 const etapa=(await db.query("SELECT * FROM public.etapas WHERE libro='Efesios'")).rows[0]
 const sociedades=[randomUUID(),randomUUID(),randomUUID()]
 await como(adminClaims,async tx=>{
   for(let k=0;k<3;k++)await tx.query("INSERT INTO public.sociedades(id,nombre,iglesia,total_censo) VALUES($1,$2,'Iglesia de demostración',5)",[sociedades[k],['Sala de registro · Demo','Examen en curso · Demo','Resultados · Demo'][k]])
   for(let k=0;k<45;k++) {
-    const tipo=k%3===0?'multiple':k%3===1?'abierta':'contexto'
+    const tipo=k<27?'multiple':k<37?'abierta':'contexto';const puntos={multiple:2,abierta:3,contexto:4}[tipo]
     const texto=tipo==='multiple'?'Pregunta de demostración '+(k+1)+'. Selecciona una opción para revisar el diseño.':tipo==='abierta'?'Pregunta de demostración '+(k+1)+'. Escribe un texto de muestra para comprobar el guardado automático.':'Pregunta de demostración '+(k+1)+'. Aquí irá el pasaje y la consulta de contexto preparados por los pastores.'
-    await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje) VALUES($1,$2,$3,$4::jsonb,$5,10)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.'])
+    await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.',puntos,JSON.stringify(tipo==='multiple'?[]:[{criterio:'Criterio ficticio de demostración',puntos}])])
   }
   await tx.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[etapa.id])
 })
@@ -50,12 +54,16 @@ async function nuevaSala(sociedad,nombres) {
 const espera=await nuevaSala(sociedades[0],['Joven de demostración 1','Joven de demostración 2','Joven de demostración 3'])
 const curso=await nuevaSala(sociedades[1],['Joven en pregunta 20','Invitado de demostración'])
 const final=await nuevaSala(sociedades[2],['Joven con examen finalizado','Joven para revisar calificación'])
-async function registrarPrimero(sesion,claims) {
+async function registrarPrimero(sesion,claims,nombre) {
   const sala=await rpc('examen_sala',{p_sesion:sesion},claims)
-  return rpc('examen_registrar',{p_sesion:sesion,p_participante:sala.participantes[0].id},claims)
+  const participante=nombre?sala.participantes.find(p=>p.nombre===nombre):sala.participantes[0]
+  if(!participante)throw Error('Falta el participante ficticio de la demo')
+  const r=await rpc('examen_registrar',{p_sesion:sesion,p_participante:participante.id},claims)
+  await rpc('admin_examen_autorizar',{p_intento:r.intento.id,p_justificacion:'Identidad ficticia validada en la demo'},adminClaims)
+  return r
 }
-const intentoCurso=await registrarPrimero(curso,claimsAlumno)
-const intentoFinal=await registrarPrimero(final,claimsAlumno)
+const intentoCurso=await registrarPrimero(curso,claimsAlumno,'Joven en pregunta 20')
+const intentoFinal=await registrarPrimero(final,claimsFinal)
 const intentoOtro=await registrarPrimero(final,{sub:otroAlumno,is_anonymous:true})
 await como(adminClaims,async tx=>{
   for(const sesion of [curso,final])await tx.query("UPDATE public.sesiones SET estado='activo' WHERE id=$1",[sesion])
@@ -70,11 +78,11 @@ async function avanzar(intento,claims,cantidad) {
 }
 let estadoCurso=await avanzar(intentoCurso.intento.id,claimsAlumno,19)
 await rpc('examen_borrador',{p_intento:estadoCurso.intento.id,p_pregunta:estadoCurso.pregunta.id,p_texto:estadoCurso.pregunta.tipo==='multiple'?estadoCurso.pregunta.opciones[1]:'Este borrador de demostración se conserva al recargar.',p_revision:0},claimsAlumno)
-await avanzar(intentoFinal.intento.id,claimsAlumno,45)
+await avanzar(intentoFinal.intento.id,claimsFinal,45)
 await avanzar(intentoOtro.intento.id,{sub:otroAlumno,is_anonymous:true},45)
 await como(adminClaims,tx=>tx.query("UPDATE public.sesiones SET estado='finalizado' WHERE id=$1",[final]))
-const calificables=(await db.query("SELECT id FROM public.respuestas WHERE calificado_por='pendiente_ia' AND intento_id=$1",[intentoFinal.intento.id])).rows
-for(const respuesta of calificables)await rpc('admin_examen_calificar',{p_respuesta:respuesta.id,p_puntaje:8,p_metodo:'manual'},adminClaims)
+const calificables=(await db.query("SELECT r.id,q.puntaje FROM public.respuestas r JOIN public.intento_preguntas q ON q.id=r.intento_pregunta_id WHERE calificado_por='pendiente_ia' AND r.intento_id=$1",[intentoFinal.intento.id])).rows
+for(const respuesta of calificables)await rpc('admin_examen_calificar_rubrica',{p_respuesta:respuesta.id,p_puntos:[respuesta.puntaje],p_comentario:'Demostración local'},adminClaims)
 
 // Identidades ficticias emitidas solo por este proceso. No se aceptan JWT externos.
 const sesionesAuth=new Map(), refrescos=new Map(), firma=randomBytes(32)
@@ -138,7 +146,7 @@ function filtrar(url,cols,values,tabla) {
 }
 async function rest(req,res,url) {
   const entry=identidad(req), claims=entry?.claims||{}
-  if(url.pathname.startsWith('/rest/v1/rpc/'))return json(res,await rpc(url.pathname.split('/').at(-1),await cuerpo(req),claims))
+  if(url.pathname.startsWith('/rest/v1/rpc/'))return json(res,await rpc(url.pathname.split('/').at(-1),await cuerpo(req),claims,req.headers))
   const tabla=url.pathname.split('/').at(-1), cols=tablas.get(tabla)
   if(!cols) return json(res,{message:'Tabla no disponible',code:'PGRST205'},404)
   const values=[],where=filtrar(url,cols,values,tabla)
@@ -200,12 +208,14 @@ const plugin={
         if(url.pathname==='/demo/entrar') {
           const vista=url.searchParams.get('vista')
           const admin=vista==='panel'
-          const session=authSession(admin?adminClaims:claimsAlumno)
+          let claimsVista=admin?adminClaims:vista==='finalizado'?claimsFinal:claimsAlumno
+          if(vista==='registro'){const uid=randomUUID();await db.query('INSERT INTO auth.users(id) VALUES($1)',[uid]);claimsVista={sub:uid,is_anonymous:true}}
+          const session=authSession(claimsVista)
           const destino=admin?'/admin/etapas':'/examen/'+(vista==='registro'?espera:vista==='finalizado'?final:curso)
           const storage=admin?'sb-127-auth-token':'ujeladea_participante_auth_v2'
           return html(res,'<body style="background:#191920;color:white;font:18px system-ui;padding:40px"><p>Abriendo la demo…</p><script>localStorage.setItem('+JSON.stringify(storage)+','+JSON.stringify(JSON.stringify(session))+');'+(admin?'sessionStorage.setItem("ujeladea_etapa_admin_v2",'+JSON.stringify(etapa.id)+');':'')+'location.replace('+JSON.stringify(destino)+');</script></body>')
         }
-        if(url.pathname==='/demo')return html(res,'<body style="margin:0;background:#14141c;color:#eee;font:16px system-ui;line-height:1.7"><main style="max-width:780px;margin:60px auto;padding:24px"><p style="color:#e2b74f">UJELADEA · Revisión local de V2</p><h1>Recorre la nueva etapa de Efesios</h1><p>Esta demo utiliza datos ficticios en memoria. Las preguntas son ejemplos de interfaz; el banco pastoral se incorporará después.</p><nav style="display:grid;gap:14px;margin:32px 0">'+[['panel','Panel administrativo'],['registro','Registro y sala de espera del joven'],['examen','Examen en curso · pregunta 20'],['finalizado','Confirmación de examen finalizado']].map(([key,titulo])=>'<a style="color:#ffe3a1;padding:18px;border:1px solid #6b5130;border-radius:12px;text-decoration:none" href="'+enlaces[key]+'">'+titulo+' →</a>').join('')+'</nav><p>Los cambios duran mientras este servidor esté abierto. La sala de control se actualiza automáticamente cada 15 segundos. La demo no reproduce las conexiones Realtime de Supabase.</p><p style="font-size:14px;color:#bbb">Acceso manual al panel: '+EMAIL+' · '+PASSWORD+'. Son credenciales de demostración.</p></main></body>')
+        if(url.pathname==='/demo')return html(res,'<body style="margin:0;background:#14141c;color:#eee;font:16px system-ui;line-height:1.7"><main style="max-width:780px;margin:60px auto;padding:24px"><p style="color:#e2b74f">UJELADEA · Revisión local de V2</p><h1>Recorre la nueva etapa de Efesios</h1><p>Esta demo utiliza datos ficticios en memoria. Las preguntas son ejemplos de interfaz; el banco pastoral se incorporará después.</p><nav style="display:grid;gap:14px;margin:32px 0">'+[['panel','Panel administrativo'],['registro','Registro y sala de espera del joven'],['examen','Examen en curso · pregunta 20'],['finalizado','Confirmación de examen finalizado']].map(([key,titulo])=>'<a style="color:#ffe3a1;padding:18px;border:1px solid #6b5130;border-radius:12px;text-decoration:none" href="'+enlaces[key]+'">'+titulo+' →</a>').join('')+'</nav><p>Para probar el examen, abre el panel en otra ventana y autoriza el acceso desde la sala de control. La recarga conserva la pregunta y requiere que el moderador autorice la nueva pantalla.</p><p>Los cambios duran mientras este servidor esté abierto. La sala de control se actualiza automáticamente cada 15 segundos. La demo no reproduce las conexiones Realtime de Supabase.</p><p style="font-size:14px;color:#bbb">Acceso manual al panel: '+EMAIL+' · '+PASSWORD+'. Son credenciales de demostración.</p></main></body>')
         if(url.pathname.startsWith('/functions/v1/'))return json(res,{error:'La IA está desactivada en esta demo. Puedes calificar manualmente.'},503)
         if(url.pathname.startsWith('/rest/v1/'))return await rest(req,res,url)
         const body=req.method==='GET'?{}:await cuerpo(req)

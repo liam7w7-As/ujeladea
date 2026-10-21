@@ -131,7 +131,7 @@ test('el máximo V2 incluye preguntas sin responder y usa snapshots aunque cambi
   assert.equal(participantesSesion(datos,'s')[0].puntaje_max,30)
   const resultado=puntajeSesion(datos,'s')
   assert.equal(resultado.puntajeMaximo,30)
-  assert.equal(resultado.porcentajeBruto,33)
+  assert.ok(Math.abs(resultado.porcentajeBruto-100/3)<1e-9)
 })
 
 test('una confirmación antigua de borrador no sustituye un cambio remoto más reciente',async t=>{

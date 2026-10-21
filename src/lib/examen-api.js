@@ -25,6 +25,7 @@ export function crearApiExamen(client) {
     return data
   }
   return {
+    contacto: (intento, accion = 'pulso', visible = true, motivo = '') => llamar('examen_contacto', { p_intento: intento, p_accion: accion, p_visible: visible, p_motivo: motivo }),
     sala: sesion => llamar('examen_sala', { p_sesion: sesion }),
     registrar: (sesion, participante) => llamar('examen_registrar', { p_sesion: sesion, p_participante: participante }),
     estado: intento => llamar('examen_estado', { p_intento: intento }),

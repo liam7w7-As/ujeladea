@@ -19,6 +19,9 @@ export default function FormPregunta() {
   const [tipo, setTipo] = useState('multiple')
   const [texto, setTexto] = useState('')
   const [puntaje, setPuntaje] = useState(10)
+  const [rubrica,setRubrica]=useState([])
+  const puntosTipo=etapa.reglas?.puntos?.[tipo]
+  const valor=puntosTipo??puntaje
   const [respuestaCorrecta, setRespuestaCorrecta] = useState('')
   const [activa, setActiva] = useState(true)
   
@@ -47,6 +50,7 @@ export default function FormPregunta() {
       setTipo(data.tipo)
       setTexto(data.texto)
       setPuntaje(data.puntaje)
+      setRubrica(data.rubrica||[])
       setActiva(data.activa)
 
       let resCorrecta = data.respuesta_correcta || ''
@@ -111,12 +115,13 @@ export default function FormPregunta() {
       return
     }
 
-    if (!Number.isInteger(Number(puntaje)) || Number(puntaje) < 1) {
+    if (!Number.isInteger(Number(valor)) || Number(puntaje) < 1) {
       setError('El puntaje debe ser un número entero positivo.')
       setCargando(false)
       return
     }
 
+    if(tipo!=='multiple' && Number(etapa.reglas?.version)>=3 && activa && (!rubrica.length || rubrica.some(c=>!c.criterio.trim()||!Number.isInteger(Number(c.puntos))||Number(c.puntos)<1) || rubrica.reduce((n,c)=>n+Number(c.puntos),0)!==Number(valor))){setError('Completa la rúbrica. Sus criterios deben sumar '+valor+' puntos.');setCargando(false);return}
     let opcionesFinales = null
     let respuestaFinal = respuestaCorrecta.trim()
 
@@ -149,7 +154,8 @@ export default function FormPregunta() {
         etapa_id: etapa.id,
         tipo,
         texto: texto.trim(),
-        puntaje: parseInt(puntaje),
+        puntaje: Number(valor),
+        rubrica: tipo==='multiple'?[]:rubrica.map(c=>({...c,puntos:Number(c.puntos)})),
         respuesta_correcta: respuestaFinal,
         activa,
         opciones: opcionesFinales
@@ -184,6 +190,7 @@ export default function FormPregunta() {
     }
   }
 
+  if(Number(etapa.reglas?.version)>=3 && etapa.estado!=='borrador')return <main className="admin-content"><h1>Banco protegido</h1><p>El banco y las rúbricas están fijos durante la evaluación.</p><button className="btn btn-secondary" onClick={()=>navigate('/admin/preguntas')}>Volver al banco</button></main>
   return (
     <div className="page-wrapper" style={{ padding: 'var(--space-md)' }}>
       <div className="page-content animate-in" style={{ maxWidth: '700px', width: '100%' }}>
@@ -210,13 +217,13 @@ export default function FormPregunta() {
               <select className="form-input" value={tipo} onChange={e => setTipo(e.target.value)}>
                 <option value="multiple">Opción Múltiple</option>
                 <option value="abierta">Respuesta Abierta</option>
-                <option value="contexto">Contexto Bíblico (Historia)</option>
+                <option value="contexto">Contexto bíblico</option>
               </select>
             </div>
             
             <div className="form-group" style={{ flex: 1, minWidth: '100px', marginBottom: 0 }}>
               <label className="form-label">Puntaje</label>
-              <input type="number" min="1" className="form-input" value={puntaje} onChange={e => setPuntaje(e.target.value)} required />
+              <input type="number" min="1" className="form-input" value={valor} disabled={puntosTipo!=null} onChange={e => setPuntaje(e.target.value)} required />
             </div>
 
             <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 0 }}>
@@ -262,6 +269,7 @@ export default function FormPregunta() {
             </div>
           )}
 
+          {tipo!=='multiple'&&<fieldset className="rubrica-editor"><legend>Rúbrica pastoral · {valor} puntos</legend><p>Define qué debe demostrar la respuesta y cuánto vale cada criterio.</p>{rubrica.map((c,i)=><div key={i}><input aria-label={'Descripción del criterio '+(i+1)} className="form-input" value={c.criterio} maxLength={500} onChange={e=>setRubrica(v=>v.map((x,n)=>n===i?{...x,criterio:e.target.value}:x))}/><input aria-label={'Puntos del criterio '+(i+1)} className="form-input" type="number" min="1" max={valor} value={c.puntos} onChange={e=>setRubrica(v=>v.map((x,n)=>n===i?{...x,puntos:e.target.value}:x))}/><button type="button" className="btn btn-secondary" onClick={()=>setRubrica(v=>v.filter((_,n)=>n!==i))}>Quitar</button></div>)}<button type="button" className="btn btn-secondary" disabled={rubrica.length>=10} onClick={()=>setRubrica(v=>[...v,{criterio:'',puntos:1}])}>Añadir criterio</button><p>Suma: {rubrica.reduce((n,c)=>n+Number(c.puntos||0),0)} / {valor}</p></fieldset>}
           <div className="form-group">
             <label className="form-label">Respuesta Correcta / Referencia</label>
             {tipo === 'multiple' ? (

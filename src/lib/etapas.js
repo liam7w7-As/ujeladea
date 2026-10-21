@@ -183,13 +183,13 @@ export function participantesSesion(datos, id, indice = indiceDatos(datos)) {
 // V1 conserva su cálculo original. V2 usa el máximo de todas las preguntas asignadas.
 export function puntajeSesion(datos, id, indice = indiceDatos(datos)) {
   const sesion = sesionConSociedad(datos, id)
-  const parts = participantesSesion(datos, id, indice).filter(p => !Array.isArray(datos.intentos) || p.intento)
+  const parts = participantesSesion(datos, id, indice).filter(p => !Array.isArray(datos.intentos) || (p.intento && p.puntaje_max>0))
   const respuestas = parts.flatMap(p => respuestasParticipante(datos, p.id))
   const puntajeObtenido = respuestas.reduce((s, r) => s + (r.puntaje_obtenido || 0), 0)
   const puntajeMaximo = parts.reduce((s,p) => s + p.puntaje_max, 0)
   const totalAlertas = (indice.eventosSesion.get(id) || []).length
-  const penalizacionPorcentaje = totalAlertas >= 40 ? 15 : totalAlertas >= 30 ? 10 : totalAlertas >= 20 ? 5 : 0
-  const porcentajeBruto = puntajeMaximo ? Math.round(puntajeObtenido / puntajeMaximo * 100) : 0
+  const penalizacionPorcentaje = Array.isArray(datos.intentos) ? 0 : totalAlertas >= 40 ? 15 : totalAlertas >= 30 ? 10 : totalAlertas >= 20 ? 5 : 0
+  const porcentajeBruto = Array.isArray(datos.intentos) ? (parts.length ? parts.reduce((s,p)=>s+100*(p.puntaje_total||0)/Math.max(1,p.puntaje_max),0)/parts.length : 0) : puntajeMaximo ? Math.round(puntajeObtenido / puntajeMaximo * 100) : 0
   return {
     sesionId: id, sociedad: sesion.sociedades?.nombre || 'Sociedad', iglesia: sesion.sociedades?.iglesia || '',
     fecha: sesion.created_at, porcentaje: Math.max(0, porcentajeBruto - penalizacionPorcentaje), porcentajeBruto,
@@ -202,6 +202,7 @@ export function puntajeSesion(datos, id, indice = indiceDatos(datos)) {
 }
 
 export function rankingEtapa(datos) {
+  if(Array.isArray(datos.intentos)) return rankingIndividualV2(datos)
   const indice = indiceDatos(datos)
   const sesiones = datos.sesiones.filter(s => s.estado === 'finalizado')
   const rankingSociedades = sesiones.map(s => puntajeSesion(datos, s.id, indice)).sort((a, b) =>
@@ -234,4 +235,25 @@ export function rankingEtapa(datos) {
     sociedadConMasAlertas: [...rankingSociedades].sort((a, b) => b.totalAlertas - a.totalAlertas)[0] || null,
     totalAlertasTorneo: rankingSociedades.reduce((s, r) => s + r.totalAlertas, 0),
   } }
+}
+
+// V2: cada participante aporta una nota sobre 100, con igual peso.
+function rankingIndividualV2(datos) {
+ const indice=indiceDatos(datos), jovenes=[]
+ const sociedades=new Map()
+ for(const sesion of datos.sesiones.filter(s=>s.estado==='finalizado')){
+  const sociedad=datos.sociedades.find(s=>s.id===sesion.sociedad_id)
+  for(const p of participantesSesion(datos,sesion.id,indice).filter(p=>p.intento&&p.puntaje_max>0)){
+   const nota=100*(p.puntaje_total||0)/p.puntaje_max
+   const j={id:p.id,nombre:p.nombre,sociedad:sociedad?.nombre||'Sociedad',iglesia:sociedad?.iglesia||'',puntaje:p.puntaje_total||0,puntajeMax:p.puntaje_max,efectividad:nota,alertas:p.alertas,pendientes:p.pendientes,duracionTexto:'No se usa para desempatar'}
+   jovenes.push(j)
+   if(!sociedades.has(sesion.sociedad_id))sociedades.set(sesion.sociedad_id,{sociedadId:sesion.sociedad_id,sesionId:sesion.id,sociedad:j.sociedad,iglesia:j.iglesia,rindieron:0,puntajeObtenido:0,puntajeMaximo:0,pendientesIA:0,totalAlertas:0,notas:[],destacados:0})
+   const s=sociedades.get(sesion.sociedad_id);s.rindieron++;s.puntajeObtenido+=j.puntaje;s.puntajeMaximo+=j.puntajeMax;s.pendientesIA+=j.pendientes;s.totalAlertas+=j.alertas;s.notas.push(nota);if(nota>=80)s.destacados++
+  }
+ }
+ const ordenar=(filas,campo)=>{filas.sort((a,b)=>b[campo]-a[campo]||String(a.nombre||a.sociedad).localeCompare(String(b.nombre||b.sociedad))||String(a.id||a.sociedadId).localeCompare(String(b.id||b.sociedadId)));let previo=null,pos=0;return filas.map((f,i)=>{if(previo===null||Math.abs(previo-f[campo])>1e-9)pos=i+1;previo=f[campo];return{...f,posicion:pos}})}
+ const grupos=[...sociedades.values()].map(s=>{const promedio=s.notas.reduce((a,b)=>a+b,0)/s.rindieron;return{...s,porcentaje:promedio,porcentajeBruto:promedio,promedioPorParticipante:promedio,penalizacionPorcentaje:0}})
+ const rankingSociedades=ordenar(grupos,'porcentaje'),todosJovenes=ordenar(jovenes,'efectividad')
+ const pendientes=jovenes.reduce((s,j)=>s+j.pendientes,0)
+ return{rankingSociedades,rankingDisciplina:[],topJovenes:todosJovenes.slice(0,10),todosJovenes,provisional:pendientes>0||datos.sesiones.some(s=>s.estado!=='finalizado'),metricasGlobales:{totalSociedades:grupos.length,totalJovenes:jovenes.length,promedioGeneralTorneo:jovenes.length?jovenes.reduce((s,j)=>s+j.efectividad,0)/jovenes.length:0,promedioPuntosTorneo:0,mejorNota:todosJovenes[0]||null,mejorTiempo:null,sociedadMasDisciplinada:null,sociedadConMasAlertas:null,totalAlertasTorneo:jovenes.reduce((s,j)=>s+j.alertas,0),pendientes}}
 }

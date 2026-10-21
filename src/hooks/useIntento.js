@@ -6,11 +6,13 @@ export default function useIntento(sesionId) {
   const [estado, setEstado] = useState({ datos: null, error: '', sinIntento: false, cargando: true, sesionId })
   const vigente = useRef(false)
   const intento = useRef(null)
+  const supervisado = useRef(false)
   const terminado = useRef(false)
   const solicitar = useRef(null)
   const aplicar = useCallback(datos => {
     if (vigente.current !== sesionId) return
     intento.current = datos.intento.id
+    supervisado.current = Boolean(datos.acceso)
     terminado.current ||= datos.intento.estado === 'finalizado'
     setEstado(prev => ({ datos: combinarEstado(prev.datos, datos), error: '', sinIntento: false, cargando: false, sesionId }))
   }, [sesionId])
@@ -28,7 +30,7 @@ export default function useIntento(sesionId) {
           if (!sala.intento_id) { setEstado({ datos: null, error: '', sinIntento: true, cargando: false, sesionId }); return }
           intento.current = sala.intento_id
         }
-        const datos = await apiExamen.estado(intento.current)
+        const datos = await (supervisado.current ? apiExamen.contacto(intento.current, 'pulso', document.visibilityState !== 'hidden') : apiExamen.estado(intento.current))
         if (!cancelado) aplicar(datos)
       } catch (err) {
         if (!cancelado) setEstado(prev => ({ ...prev, datos: err.code === '42501' ? null : prev.datos, error: err.message, cargando: false, sesionId }))
@@ -36,8 +38,10 @@ export default function useIntento(sesionId) {
     }
     solicitar.current = cargar
     void cargar()
-    const timer = setInterval(cargar, 5000)
-    const visible = () => { if (document.visibilityState === 'visible') void cargar() }
+    const timer = setInterval(() => { if(document.visibilityState !== 'hidden') void cargar() }, 15000 + Math.floor(Math.random()*3000))
+    const visible = () => { if (document.visibilityState === 'visible') void cargar(); else if(supervisado.current && intento.current) void apiExamen.contacto(intento.current,'pulso',false).catch(()=>{}) }
+    const salida = () => { if(supervisado.current && intento.current && !terminado.current) void apiExamen.contacto(intento.current,'salida',false).catch(()=>{}) }
+    window.addEventListener('pagehide',salida)
     window.addEventListener('online', cargar)
     document.addEventListener('visibilitychange', visible)
     return () => {
@@ -45,6 +49,7 @@ export default function useIntento(sesionId) {
       cancelado = true
       clearInterval(timer)
       window.removeEventListener('online', cargar)
+      window.removeEventListener('pagehide',salida)
       document.removeEventListener('visibilitychange', visible)
       solicitar.current = null
       intento.current = null

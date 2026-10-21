@@ -25,7 +25,7 @@ export default function NavAdmin() {
       </nav>
       <button onClick={salir} disabled={saliendo} className="btn btn-secondary admin-logout"><LogOut size={17} />{saliendo ? 'Saliendo…' : 'Salir'}</button>
     </div>
-    {etapa && <div className="admin-stage-line">Etapa seleccionada: <strong>{etapa.libro} · {etapa.anio}</strong><Link to="/admin/etapas">Cambiar etapa</Link></div>}
+    {etapa && <div className="admin-stage-line">Evaluación: <strong>{etapa.libro} · {etapa.anio}</strong></div>}
     {error && <p className="alert alert-error" role="alert">{error}</p>}
   </header>
 }

@@ -21,7 +21,7 @@ export default function EtapaProvider({ children }) {
       if (!usuario || usuario.tipo !== 'admin') return { etapas: [], archivo: null, cargando: false, error: '', clave: claveCarga }
       etapas = (await leerTodas(() => supabase.from('etapas').select('*')))
         .sort((a, b) => b.anio - a.anio || b.numero - a.numero)
-      const etapa = etapas.find(e => e.id === seleccion)
+      const etapa = etapas.find(e => !e.historica && e.codigo === '2026-02-efesios') || etapas.find(e => !e.historica && e.id === seleccion)
       const archivo = etapa?.estado === 'cerrada' ? await cargarArchivo(supabase, etapa) : null
       return { etapas, archivo, cargando: false, error: '', clave: claveCarga }
     }
@@ -35,12 +35,13 @@ export default function EtapaProvider({ children }) {
     setRevision(v => v + 1)
   }, [])
   const seleccionar = useCallback(id => {
+    if (estado.etapas.find(e => e.id === id)?.historica) return
     setEstado(prev => ({ ...prev, archivo: null, cargando: true, error: '' }))
     try { sessionStorage.setItem(SELECCION, id) } catch { /* La selección funciona sin almacenamiento. */ }
     setSeleccion(id)
     setRevision(v => v + 1)
-  }, [])
-  const etapa = estado.etapas.find(e => e.id === seleccion) || null
+  }, [estado.etapas])
+  const etapa = estado.etapas.find(e => !e.historica && e.codigo === '2026-02-efesios') || estado.etapas.find(e => !e.historica && e.id === seleccion) || null
   const value = useMemo(() => ({ ...estado, cargando: estado.cargando || estado.clave !== claveCarga, etapa, soloLectura: etapa?.estado === 'cerrada', seleccionar, recargar }), [estado, etapa, seleccionar, recargar, claveCarga])
   return <EtapaContext.Provider value={value}>{children}</EtapaContext.Provider>
 }

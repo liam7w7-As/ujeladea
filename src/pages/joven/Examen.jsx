@@ -7,10 +7,13 @@ import { rutaIntento } from '../../lib/estado-examen'
 import { BorradorExamen } from '../../lib/borradores'
 import { SeguridadExamen } from '../../lib/seguridad'
 import EstadoParticipante from '../../components/EstadoParticipante'
+import AccesoPendiente from '../../components/AccesoPendiente'
 import AdvertenciaOverlay from '../../components/AdvertenciaOverlay'
+import Modal from '../../components/Modal'
 import InstruccionesExamen from '../../components/InstruccionesExamen'
 
 function Pregunta({ pregunta, intento, aplicar }) {
+  const [entrega,setEntrega]=useState(false)
   const [gestor] = useState(() => new BorradorExamen({ api: apiExamen, intento: intento.id, pregunta, storage: globalThis.localStorage, onEstado: aplicar }))
   const borrador = useSyncExternalStore(gestor.subscribe, gestor.getSnapshot)
   useEffect(() => {
@@ -35,11 +38,12 @@ function Pregunta({ pregunta, intento, aplicar }) {
     <div className="card joven-enunciado"><p className="eyebrow">{pregunta.tipo === 'multiple' ? 'Opción múltiple' : pregunta.tipo === 'contexto' ? 'Contexto bíblico' : 'Respuesta abierta'} · {pregunta.puntaje} puntos</p><h1 id="pregunta-titulo">{pregunta.texto}</h1></div>
     {pregunta.tipo === 'multiple' ? <div className="joven-opciones" role="group" aria-label="Opciones de respuesta">{pregunta.opciones.map((opcion,i) => <button key={i} disabled={bloqueado} className={borrador.texto === opcion ? 'seleccionada' : ''} aria-pressed={borrador.texto === opcion} onClick={() => gestor.cambiar(opcion)}><span>{String.fromCharCode(65+i)}</span>{opcion}{borrador.texto === opcion && <Check size={20} />}</button>)}</div> :
       <label className="joven-respuesta"><span className="form-label">Tu respuesta</span><textarea className="form-input" rows={7} value={borrador.texto} disabled={bloqueado} onChange={e => gestor.cambiar(e.target.value)} maxLength={2000} placeholder="Escribe tu respuesta aquí…" /><small>{borrador.texto.length} / 2000 caracteres</small></label>}
-    <div className={'joven-guardado ' + borrador.estado} role="status"><p>{mensajes[borrador.estado]}</p>{!borrador.localDisponible && <p>Este navegador no permite guardar una copia local. Espera a ver la confirmación del servidor antes de salir.</p>}
+    <div className="joven-siguiente"><div className="joven-resumen-guardado">    <div className={'joven-guardado ' + borrador.estado} role="status"><p>{mensajes[borrador.estado]}</p>{!borrador.localDisponible && <p>Este navegador no permite guardar una copia local. Espera a ver la confirmación del servidor antes de salir.</p>}
       {borrador.estado === 'conflicto' ? <div className="etapa-actions"><button className="btn btn-secondary" onClick={() => gestor.usarGuardado()}>Usar el borrador del servidor</button><button className="btn btn-secondary" onClick={() => gestor.conservarLocal()}>Conservar mi texto de esta pantalla</button></div> :
         ['error','pendiente'].includes(borrador.estado) && <button className="btn btn-secondary" onClick={() => gestor.reintentar()}>Reintentar guardado</button>}
     </div>
-    <div className="joven-siguiente"><p>Al confirmar, tu respuesta queda registrada y ya no podrás cambiarla.</p><button className="btn btn-primary" disabled={!borrador.texto.trim() || enviando || borrador.estado === 'conflicto'} onClick={() => gestor.confirmar()}>{enviando ? 'Confirmando…' : borrador.estado === 'pendiente' ? 'Reintentar confirmación' : pregunta.posicion === intento.total ? 'Confirmar y finalizar' : 'Confirmar y continuar'}<ArrowRight size={18} /></button></div>
+<p>Al confirmar, tu respuesta queda registrada y ya no podrás cambiarla.</p></div><button className="btn btn-primary" disabled={!borrador.texto.trim() || enviando || borrador.estado === 'conflicto'} onClick={() => pregunta.posicion===intento.total && borrador.estado!=='pendiente'?setEntrega(true):gestor.confirmar()}>{enviando ? 'Confirmando…' : borrador.estado === 'pendiente' ? 'Reintentar confirmación' : pregunta.posicion === intento.total ? 'Confirmar y finalizar' : 'Confirmar y continuar'}<ArrowRight size={18} /></button></div>
+    <Modal isOpen={entrega} onClose={()=>setEntrega(false)} titulo="Entregar evaluación" mensaje={'Se confirmará la última respuesta y se entregará tu examen de '+intento.total+' preguntas. La entrega es definitiva.'} isConfirm textoConfirmar="Confirmar entrega" onConfirm={()=>{setEntrega(false);void gestor.confirmar()}}/>
   </section>
 }
 
@@ -69,14 +73,14 @@ export default function Examen() {
   const intentoId = datos?.intento.id
   const estadoIntento = datos?.intento.estado
   useEffect(() => {
-    if (!intentoId || estadoIntento !== 'en_curso') return
+    if (!intentoId || estadoIntento !== 'en_curso' || datos?.acceso?.pendiente) return
     const seguridad = new SeguridadExamen({ intento: intentoId, reportar: apiExamen.eventos, onAdvertencia: tipo => {
       if (tipo === 'salio_fullscreen') setOverlay(true)
       else setAviso(true)
     } })
     seguridad.iniciar()
     return () => seguridad.destruir()
-  }, [intentoId, estadoIntento])
+  }, [intentoId, estadoIntento, datos?.acceso?.pendiente])
   async function pantallaCompleta() {
     setOverlay(false)
     try { if (document.fullscreenEnabled && !document.fullscreenElement) await document.documentElement.requestFullscreen() }
@@ -85,6 +89,7 @@ export default function Examen() {
   if (estado.sinIntento) return <Navigate to={'/examen/' + sesionId} replace />
   if (!datos) return <EstadoParticipante {...estado} />
   if (datos.intento.estado !== 'en_curso') return <Navigate to={rutaIntento(sesionId, datos.intento.estado)} replace />
+  if (datos.acceso?.pendiente) return <AccesoPendiente datos={datos} aplicar={estado.aplicar} />
   if (!datos.pregunta) return <EstadoParticipante error="No se encontró la pregunta pendiente. Intenta reconectar." recargar={recargar} />
   const segundos = Math.max(0, Math.ceil((restante || 0) / 1000))
   return <main className="joven-examen">

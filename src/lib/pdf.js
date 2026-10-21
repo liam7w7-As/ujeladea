@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { etiquetaEtapa } from './etapas.js'
+import { formatoNota } from './modelo-efesios.js'
 const tituloTorneo = etapa => `OLIMPIADAS BÍBLICAS UJELADEA${etapa ? ` ${etapa.anio}` : ''}`
 const subtituloEtapa = etapa => etapa ? etiquetaEtapa(etapa) : 'Catálogo general'
 
@@ -75,6 +76,8 @@ export const generarReporteResultados = async ({
   const PW = doc.internal.pageSize.getWidth()
   const PH = doc.internal.pageSize.getHeight()
   const MARGIN = 14
+
+  const nuevaEtapa = etapa?.historica === false
 
   // ── BANDA SUPERIOR ──────────────────────────────────────────────────────────
   doc.setFillColor(...C.primary)
@@ -153,8 +156,8 @@ export const generarReporteResultados = async ({
         { label: 'Puntaje parcial', value: `${estadisticas.puntajeObtenido}`, sub: `de ${estadisticas.puntajeMaximo} pts`, color: C.gray },
       ]
     : [
-        { label: 'Efectividad', value: `${estadisticas.porcentaje}%`, sub: estadisticas.penalizacionPorcentaje > 0 ? `(bruto ${estadisticas.porcentajeBruto}% - ${estadisticas.penalizacionPorcentaje}% pen.)` : 'sobre el total posible', color: estadisticas.porcentaje >= 80 ? C.success : estadisticas.porcentaje >= 60 ? C.warning : C.error },
-        { label: 'Participaron', value: `${estadisticas.rindieron}`, sub: estadisticas.totalCenso ? `de ${estadisticas.totalCenso} en censo` : 'jóvenes', color: C.primary },
+        { label: nuevaEtapa ? 'Promedio / 100' : 'Efectividad', value: nuevaEtapa ? formatoNota(estadisticas.porcentaje) : `${estadisticas.porcentaje}%`, sub: nuevaEtapa ? 'promedio de notas individuales' : estadisticas.penalizacionPorcentaje > 0 ? `(bruto ${estadisticas.porcentajeBruto}% - ${estadisticas.penalizacionPorcentaje}% pen.)` : 'sobre el total posible', color: estadisticas.porcentaje >= 80 ? C.success : estadisticas.porcentaje >= 60 ? C.warning : C.error },
+        { label: 'Participaron', value: `${estadisticas.rindieron}`, sub: etapa?.historica && estadisticas.totalCenso ? `de ${estadisticas.totalCenso} en censo` : 'jóvenes', color: C.primary },
         { label: 'Puntaje Obtenido', value: `${estadisticas.puntajeObtenido}`, sub: `de ${estadisticas.puntajeMaximo} pts posibles`, color: C.dark },
         { label: 'Promedio x Joven', value: `${estadisticas.promedioPorParticipante}`, sub: 'puntos por participante', color: [46, 134, 193] },
       ]
@@ -192,11 +195,11 @@ export const generarReporteResultados = async ({
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7.5)
     doc.setTextColor(...C.error)
-    doc.text(`⚠  Alertas de Seguridad: ${estadisticas.totalAlertas}`, MARGIN + 4, cursorY + 5)
+    doc.text(`${nuevaEtapa ? 'Eventos del navegador' : 'Alertas de seguridad'}: ${estadisticas.totalAlertas}`, MARGIN + 4, cursorY + 5)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...C.gray)
-    const escalaTexto = '  Escala: 0-19 = sin rebaja  •  20-29 = -5%  •  30-39 = -10%  •  40+ = -15%'
+    const escalaTexto = nuevaEtapa ? 'Señales técnicas para revisión del moderador. No descuentan puntos.' : '  Escala: 0-19 = sin rebaja  •  20-29 = -5%  •  30-39 = -10%  •  40+ = -15%'
     doc.text(escalaTexto, MARGIN + 4, cursorY + 10)
     cursorY += 17
   }
@@ -214,7 +217,7 @@ export const generarReporteResultados = async ({
   const cols = ['#', 'Nombre del Joven', 'Del Censo', 'Puntaje / Máx.', 'Efectividad', 'Alertas', 'Estado']
   const rows = participantes.map((p, idx) => {
     const efectividad = p.puntaje_max > 0
-      ? `${Math.round(((p.puntaje_total ?? 0) / p.puntaje_max) * 100)}%`
+      ? nuevaEtapa ? formatoNota(100 * (p.puntaje_total ?? 0) / p.puntaje_max) : `${Math.round(((p.puntaje_total ?? 0) / p.puntaje_max) * 100)}%`
       : '—'
     return [
       `${idx + 1}°`,
@@ -223,15 +226,16 @@ export const generarReporteResultados = async ({
       `${p.puntaje_total ?? 0} / ${p.puntaje_max ?? '?'} pts`,
       efectividad,
       p.alertas > 0 ? `${p.alertas}` : '—',
-      p.pendientes > 0 ? `${p.pendientes} pend.` : '✓ Completo',
+      p.pendientes > 0 ? `${p.pendientes} pend.` : nuevaEtapa ? p.puntaje_max > 0 ? 'Completo' : 'Sin intento' : '✓ Completo',
     ]
   })
 
+  if (nuevaEtapa) cols[4] = 'Nota / 100'
   autoTable(doc, {
     startY: cursorY,
     margin: { left: MARGIN, right: MARGIN },
-    head: [cols],
-    body: rows,
+    head: [nuevaEtapa?cols.filter((_,i)=>i!==2):cols],
+    body: nuevaEtapa?rows.map(r=>r.filter((_,i)=>i!==2)):rows,
     theme: 'plain',
     headStyles: {
       fillColor: C.primary,
@@ -248,7 +252,14 @@ export const generarReporteResultados = async ({
     alternateRowStyles: {
       fillColor: [248, 246, 250],
     },
-    columnStyles: {
+    columnStyles: nuevaEtapa ? {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { fontStyle: 'bold', cellWidth: 60 },
+      2: { halign: 'center', cellWidth: 36 },
+      3: { halign: 'center', fontStyle: 'bold', cellWidth: 24 },
+      4: { halign: 'center', cellWidth: 18 },
+      5: { halign: 'center', cellWidth: 34 },
+    } : {
       0: { halign: 'center', fontStyle: 'bold', cellWidth: 10, textColor: C.primary },
       1: { fontStyle: 'bold', cellWidth: 55 },
       2: { halign: 'center', cellWidth: 18 },
@@ -258,7 +269,7 @@ export const generarReporteResultados = async ({
       6: { halign: 'center', cellWidth: 22 },
     },
     didParseCell: (data) => {
-      if (data.section !== 'body') return
+      if (data.section !== 'body' || nuevaEtapa) return
       // Estado (col 6)
       if (data.column.index === 6) {
         const raw = data.row.raw[6]
@@ -479,23 +490,28 @@ export const generarReporteIndividual = async ({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.setTextColor(...C.dark)
-  doc.text(participante.nombre, MARGIN, cursorY)
+  const nombreLineas = doc.splitTextToSize(participante.nombre, PW - MARGIN * 2)
+  doc.text(nombreLineas, MARGIN, cursorY)
+  cursorY += (nombreLineas.length - 1) * 7
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(...C.gray)
-  doc.text(`${sesion.sociedad || 'Sociedad'} ${sesion.iglesia ? '• ' + sesion.iglesia : ''} • ${participante.del_censo ? 'Miembro Oficial (Censo)' : 'Invitado'}`, MARGIN, cursorY + 6)
+  const identidad = [sesion.sociedad || 'Sociedad', sesion.iglesia, etapa?.historica ? (participante.del_censo ? 'Miembro oficial' : 'Invitado') : ''].filter(Boolean).join(' - ')
+  const identidadLineas = doc.splitTextToSize(identidad, PW - MARGIN * 2)
+  doc.text(identidadLineas, MARGIN, cursorY + 6)
+  cursorY += (identidadLineas.length - 1) * 4
 
   const fechaExamen = sesion.fecha ? new Date(sesion.fecha).toLocaleDateString('es-ES', {
     year: 'numeric', month: 'long', day: 'numeric'
   }) : ''
   if (fechaExamen) {
     doc.setFontSize(8)
-    doc.text(`Examen realizado: ${fechaExamen}`, PW - MARGIN, cursorY + 3, { align: 'right' })
+    doc.text(`Examen realizado: ${fechaExamen}`, MARGIN, cursorY + 12)
   }
 
   // Separador
-  cursorY += 13
+  cursorY += 18
   doc.setDrawColor(...C.lightGray)
   doc.setLineWidth(0.5)
   doc.line(MARGIN, cursorY, PW - MARGIN, cursorY)
@@ -504,23 +520,24 @@ export const generarReporteIndividual = async ({
   // ── TARJETAS RESUMEN DEL JOVEN ──────────────────────────────────────────────
   const totalPreguntas = respuestas.length
   const correctas = respuestas.filter(r => r.es_correcta === true).length
-  const incorrectas = respuestas.filter(r => r.es_correcta === false && r.calificado_por !== 'pendiente_ia' && r.puntaje_obtenido !== null).length
+  const incorrectas = respuestas.filter(r => r.es_correcta === false && r.calificado_por !== 'pendiente_ia' && r.puntaje_obtenido !== null && (etapa?.historica || r.puntaje_obtenido === 0)).length
+  const parciales = respuestas.filter(r => !r.es_correcta && r.puntaje_obtenido > 0).length
   const pendientes = respuestas.filter(r => r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null).length
   const puntajeObtenido = participante.puntaje_total ?? 0
   const puntajeMaximo = participante.puntaje_max ?? respuestas.reduce((sum, r) => sum + (r.preguntas?.puntaje || 0), 0)
-  const efectividad = puntajeMaximo > 0 ? Math.round((puntajeObtenido / puntajeMaximo) * 100) : 0
+  const efectividad = puntajeMaximo > 0 ? (puntajeObtenido / puntajeMaximo) * 100 : 0
 
   const tarjetas = [
     {
       label: 'Puntaje Obtenido',
       value: `${puntajeObtenido} / ${puntajeMaximo}`,
-      sub: `${efectividad}% de efectividad`,
+      sub: etapa?.historica ? `${Math.round(efectividad)}% de efectividad` : `${formatoNota(efectividad)} / 100`,
       color: efectividad >= 80 ? C.success : efectividad >= 60 ? C.warning : C.error
     },
     {
-      label: 'Respuestas',
-      value: `${correctas} / ${totalPreguntas}`,
-      sub: `${correctas} corr. • ${incorrectas} incorr.`,
+      label: etapa?.historica ? 'Respuestas' : 'Respuestas evaluadas',
+      value: etapa?.historica ? `${correctas} / ${totalPreguntas}` : `${totalPreguntas - pendientes} / ${totalPreguntas}`,
+      sub: etapa?.historica ? `${correctas} corr. / ${incorrectas} incorr.` : `${parciales} parciales / ${incorrectas} sin puntos`,
       color: C.primary
     },
     {
@@ -532,8 +549,8 @@ export const generarReporteIndividual = async ({
     {
       label: 'Seguridad',
       value: `${participante.alertas || 0}`,
-      sub: (participante.alertas || 0) >= 20 ? 'Alertas críticas' : (participante.alertas || 0) > 0 ? 'Alertas leves' : 'Sin incidentes',
-      color: (participante.alertas || 0) >= 20 ? C.error : (participante.alertas || 0) > 0 ? C.warning : C.success
+      sub: etapa?.historica ? ((participante.alertas || 0) >= 20 ? 'Alertas críticas' : (participante.alertas || 0) > 0 ? 'Alertas leves' : 'Sin incidentes') : 'Sin descuento automático',
+      color: etapa?.historica && (participante.alertas || 0) >= 20 ? C.error : C.gray
     }
   ]
 
@@ -576,7 +593,7 @@ export const generarReporteIndividual = async ({
     const pMax = r.preguntas?.puntaje || 0
     const pObt = r.puntaje_obtenido ?? 0
     const isPend = r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null
-    const estado = isPend ? 'Pendiente' : r.es_correcta ? 'Correcta' : 'Incorrecta'
+    const estado = isPend ? 'Pendiente' : r.es_correcta ? 'Correcta' : !etapa?.historica && pObt > 0 ? 'Parcial' : 'Incorrecta'
 
     return [
       `${idx + 1}`,
@@ -611,9 +628,9 @@ export const generarReporteIndividual = async ({
     },
     columnStyles: {
       0: { halign: 'center', fontStyle: 'bold', cellWidth: 8, textColor: C.primary },
-      1: { cellWidth: 55 },
+      1: { cellWidth: 48 },
       2: { cellWidth: 46 },
-      3: { cellWidth: 46 },
+      3: { cellWidth: 47 },
       4: { halign: 'center', fontStyle: 'bold', cellWidth: 16 },
       5: { halign: 'center', cellWidth: 17, fontStyle: 'bold' },
     },

@@ -14,7 +14,7 @@ test('el informe V2 usa todas las asignaciones, separa convocados e identifica n
   assert.equal(i.resumen.registrados,4)
   assert.equal(i.resumen.sinRegistro,2)
   assert.equal(i.sociedades[0].puntajeMaximo,900)
-  assert.equal(i.sociedades.find(s=>s.sesionId==='sesion-0').penalizacionPorcentaje,5)
+  assert.equal(i.sociedades.find(s=>s.sesionId==='sesion-0').penalizacionPorcentaje,0)
   assert.equal(i.provisional,true)
   assert.equal(JSON.stringify(f),original)
 })

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useEtapa } from '../../context/etapa-context'
 import EtapaAviso from '../../components/EtapaAviso'
-import { ArrowLeft, Search, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Search, Plus, Trash2 } from 'lucide-react'
 
 export default function CrearSesion() {
   const navigate = useNavigate()
@@ -18,7 +18,7 @@ export default function CrearSesion() {
   const [sociedadSeleccionada, setSociedadSeleccionada] = useState(null)
   
   // Datos nueva sociedad (si no existe)
-  const [nuevaSociedad, setNuevaSociedad] = useState({ nombre: '', iglesia: '', total_censo: '' })
+  const [nuevaSociedad, setNuevaSociedad] = useState({ nombre: '', iglesia: '' })
   const [mostrandoFormNueva, setMostrandoFormNueva] = useState(false)
 
   // Datos de participantes
@@ -53,7 +53,6 @@ export default function CrearSesion() {
         .insert([{
           nombre: nuevaSociedad.nombre,
           iglesia: nuevaSociedad.iglesia,
-          total_censo: nuevaSociedad.total_censo ? parseInt(nuevaSociedad.total_censo) : null
         }])
         .select()
         .single()
@@ -82,8 +81,6 @@ export default function CrearSesion() {
   const handleEliminarParticipante = (id) => {
     setParticipantes(participantes.filter(p => p.id !== id))
   }
-
-  const participantesDelCenso = participantes.filter(p => p.del_censo).length
 
   const handleCrearSesion = async () => {
     setError('')
@@ -185,9 +182,6 @@ export default function CrearSesion() {
                             <div style={{ fontWeight: 600 }}>{soc.nombre}</div>
                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{soc.iglesia}</div>
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--color-accent)', background: 'var(--color-accent-muted)', padding: '2px 8px', borderRadius: '12px' }}>
-                            Censo: {soc.total_censo}
-                          </div>
                         </div>
                       ))
                     )}
@@ -207,11 +201,6 @@ export default function CrearSesion() {
                   <div className="form-group">
                     <label className="form-label">Iglesia a la que pertenece</label>
                     <input required type="text" className="form-input" value={nuevaSociedad.iglesia} onChange={e => setNuevaSociedad({...nuevaSociedad, iglesia: e.target.value})} placeholder="Ej: INELA Central" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Total del Censo <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</span></label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" className="form-input" value={nuevaSociedad.total_censo} onChange={e => setNuevaSociedad({...nuevaSociedad, total_censo: e.target.value.replace(/[^0-9]/g, '')})} placeholder="Ej: 15" />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Solo informativo. Puedes dejarlo vacío.</p>
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
                     <button type="button" onClick={() => setMostrandoFormNueva(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
@@ -234,9 +223,6 @@ export default function CrearSesion() {
                 </h2>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{sociedadSeleccionada?.nombre}</div>
-                  {sociedadSeleccionada?.total_censo ? (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)' }}>Censo oficial: {sociedadSeleccionada.total_censo}</div>
-                  ) : null}
                 </div>
               </div>
 
@@ -249,25 +235,10 @@ export default function CrearSesion() {
                   onChange={e => setNuevoParticipante({...nuevoParticipante, nombre: e.target.value})}
                   style={{ flex: 1 }}
                 />
-                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--color-text-muted)', background: 'var(--color-bg-base)', padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={nuevoParticipante.del_censo}
-                    onChange={e => setNuevoParticipante({...nuevoParticipante, del_censo: e.target.checked})}
-                  />
-                  Es del censo
-                </label>
                 <button type="submit" aria-label="Agregar participante" className="btn btn-primary" style={{ padding: '0 1rem', width: 'auto' }}>
                   <Plus size={18} />
                 </button>
               </form>
-
-              {participantesDelCenso < sociedadSeleccionada?.total_censo && (
-                <div className="alert" style={{ background: 'rgba(212, 160, 23, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(212, 160, 23, 0.2)' }}>
-                  <AlertTriangle size={16} />
-                  <span>Faltan {sociedadSeleccionada?.total_censo - participantesDelCenso} jóvenes del censo (dato informativo).</span>
-                </div>
-              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto', marginBottom: 'var(--space-lg)' }}>
                 {participantes.length === 0 ? (
@@ -279,9 +250,6 @@ export default function CrearSesion() {
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--color-bg-base)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}>
                       <div>
                         <div style={{ fontSize: '0.95rem' }}>{idx + 1}. {p.nombre}</div>
-                        <div style={{ fontSize: '0.75rem', color: p.del_censo ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
-                          {p.del_censo ? 'Cuenta para el censo' : 'Invitado (no afecta censo)'}
-                        </div>
                       </div>
                       <button onClick={() => handleEliminarParticipante(p.id)} style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', padding: '4px' }}>
                         <Trash2 size={18} />

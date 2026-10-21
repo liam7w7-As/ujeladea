@@ -13,7 +13,7 @@ async function fixture(cantidad = 3) {
   const sesion = randomUUID()
   const jovenes = [randomUUID(), randomUUID(), randomUUID()]
   await asRole(db, 'authenticated', adminClaims, async () => {
-    await db.query('UPDATE public.etapas SET cantidad_preguntas=$1 WHERE id=$2', [cantidad, efesios.id])
+    await db.query('UPDATE public.etapas SET cantidad_preguntas=$1,reglas=\'{"version":2}\'::jsonb WHERE id=$2', [cantidad, efesios.id])
     await db.query("INSERT INTO public.sociedades(id,nombre,iglesia) VALUES($1,'Sociedad ficticia','Prueba')", [sociedad])
     for (let k = 0; k < cantidad; k++) await db.query(
       "INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje) VALUES($1,$2,$3,$4::jsonb,$5,$6)",
@@ -224,7 +224,7 @@ test('las RPC públicas no son SECURITY DEFINER y los ayudantes internos no se p
   const f=await fixture(1)
   try{
     const funciones=(await f.db.query("SELECT p.proname,p.prosecdef FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND (p.proname LIKE 'examen_%' OR p.proname LIKE 'admin_examen_%')")).rows
-    assert.equal(funciones.length,14)
+    assert.equal(funciones.length,19)
     assert.ok(funciones.every(p=>!p.prosecdef))
     await asRole(f.db,'authenticated',{sub:f.usuarios[0]},async()=>{
       for(const nombre of ['examen_uid()','examen_cerrar(uuid,text)','examen_iniciar(uuid)','examen_payload(uuid)','examen_bloquear(uuid)']){

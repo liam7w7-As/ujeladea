@@ -8,7 +8,8 @@ import NavAdmin from '../../components/NavAdmin'
 import EtapaAviso from '../../components/EtapaAviso'
 
 export default function BancoPreguntas() {
-  const { etapa, archivo, soloLectura } = useEtapa()
+  const { etapa, archivo, soloLectura: cerrada } = useEtapa()
+  const soloLectura=cerrada||etapa.estado!=='borrador'
   const [preguntas, setPreguntas] = useState(null)
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
@@ -17,10 +18,10 @@ export default function BancoPreguntas() {
   const [ocupada, setOcupada] = useState('')
   useEffect(() => {
     let vigente = true
-    const promesa = soloLectura ? Promise.resolve(archivo.preguntas) : leerTodas(() => supabase.from('preguntas').select('*').eq('etapa_id', etapa.id))
+    const promesa = cerrada ? Promise.resolve(archivo.preguntas) : leerTodas(() => supabase.from('preguntas').select('*').eq('etapa_id', etapa.id))
     promesa.then(data => { if (vigente) setPreguntas(data) }).catch(err => { if (vigente) setError(err.message) })
     return () => { vigente = false }
-  }, [etapa, archivo, soloLectura])
+  }, [etapa, archivo, soloLectura, cerrada])
   const filtradas = (preguntas || []).filter(p => p.texto.toLowerCase().includes(busqueda.toLowerCase()) && (tipo === 'todas' || p.tipo === tipo) && (filtroEstado === 'todas' || Boolean(p.activa) === (filtroEstado === 'activas')))
   async function cambiarActiva(pregunta) {
     if (soloLectura || ocupada) return
@@ -55,8 +56,9 @@ export default function BancoPreguntas() {
         <div><dt>Respuesta abierta</dt><dd>Respuesta esperada, pasaje de apoyo y criterios para otorgar puntos parciales. El jurado asigna la nota.</dd></div>
         <div><dt>Contexto bíblico</dt><dd>Pasaje o situación que se analizará y una referencia que explique los elementos esperados. El jurado revisa la respuesta.</dd></div>
       </dl>
-      <p className="etapa-help">Acuerden la versión bíblica y la distribución de puntos antes de activar la etapa. Solo las preguntas activas se asignan al iniciar un intento.</p>
+      <p className="etapa-help">Efesios: 27 múltiples de 2 puntos, 10 abiertas de 3 y 8 de contexto de 4. Máximo 116; nota final sobre 100. Completa las rúbricas y acuerda la versión bíblica antes de activar. El banco queda fijo durante la evaluación.</p>
     </section>}
+    {soloLectura && !cerrada && <p className="etapa-aviso">El banco y las rúbricas están fijos durante la evaluación.</p>}
     {error && <p className="alert alert-error" role="alert">{error}</p>}
     <div className="etapa-filters">
       <label><span className="form-label"><Search size={15} />Buscar pregunta</span><input className="form-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Escribe una palabra…" /></label>
