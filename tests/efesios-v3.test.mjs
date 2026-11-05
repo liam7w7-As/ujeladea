@@ -48,6 +48,7 @@ test('Efesios V3: distribución, autorización, rúbricas, tardanza y recuperaci
   const nuevo=await admin('admin_examen_agregar',[sesion,'Joven tardío'])
   b=await rpc(users[1],'examen_registrar',[sesion,nuevo.participante_id])
   assert.equal(b.pregunta,null)
+  assert.equal(Date.parse(b.sesion.vence_at),Date.parse(a.intento.vence_at))
   assert.equal((await db.query('SELECT count(*)::int n FROM public.intento_preguntas WHERE intento_id=$1',[b.intento.id])).rows[0].n,0)
   await admin('admin_examen_autorizar',[b.intento.id,'Identidad del nuevo participante comprobada'])
   b=await rpc(users[1],'examen_contacto',[b.intento.id])

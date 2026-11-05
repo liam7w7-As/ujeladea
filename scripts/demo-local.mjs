@@ -32,6 +32,8 @@ async function como(claims, fn, headers={}) {
   })
 }
 const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar','admin_premiacion_resumen','admin_premiacion_validar_pdf','admin_premiacion_vincular'])
+rpcs.add('examen_ayuda')
+rpcs.add('admin_examen_atender_ayuda')
 async function rpc(nombre,args,claims,headers={}) {
   if(!rpcs.has(nombre))throw new Error('RPC no disponible en la demo')
   const keys=Object.keys(args)
@@ -43,7 +45,7 @@ await como(adminClaims,async tx=>{
   for(let k=0;k<3;k++)await tx.query("INSERT INTO public.sociedades(id,nombre,iglesia,total_censo) VALUES($1,$2,'Iglesia de demostración',5)",[sociedades[k],['Sala de registro · Demo','Examen en curso · Demo','Resultados · Demo'][k]])
   for(let k=0;k<45;k++) {
     const tipo=k<27?'multiple':k<37?'abierta':'contexto';const puntos={multiple:2,abierta:3,contexto:4}[tipo]
-    const texto=tipo==='multiple'?'Pregunta de demostración '+(k+1)+'. Selecciona una opción para revisar el diseño.':tipo==='abierta'?'Pregunta de demostración '+(k+1)+'. Escribe un texto de muestra para comprobar el guardado automático.':'Pregunta de demostración '+(k+1)+'. Aquí irá el pasaje y la consulta de contexto preparados por los pastores.'
+    const texto=tipo==='multiple'?'Pregunta de demostración '+(k+1)+'. Selecciona una opción para revisar el diseño.':tipo==='abierta'?'Pregunta de demostración '+(k+1)+'. Escribe un texto de muestra para comprobar el guardado automático.':'Pasaje:\nTexto de demostración para comprobar la lectura y la escritura. El pasaje oficial será preparado por los pastores.\n\nPregunta:\nPregunta de demostración '+(k+1)+'. Escribe una explicación de muestra sobre este contexto.'
     await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.',puntos,JSON.stringify(tipo==='multiple'?[]:[{criterio:'Criterio ficticio de demostración',puntos}])])
   }
   await tx.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[etapa.id])

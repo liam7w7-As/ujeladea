@@ -235,8 +235,10 @@ export default function FormPregunta() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Texto de la Pregunta</label>
+            <label className="form-label" htmlFor="texto-pregunta">Texto de la Pregunta</label>
             <textarea 
+              id="texto-pregunta"
+              aria-describedby={tipo === 'contexto' ? 'formato-contexto' : undefined}
               className="form-input" 
               value={texto} 
               onChange={e => setTexto(e.target.value)} 
@@ -244,6 +246,7 @@ export default function FormPregunta() {
               placeholder="Escribe la pregunta detalladamente..."
               required
             />
+            {tipo === 'contexto' && <p id="formato-contexto" className="etapa-help">Para mostrar el pasaje separado, escribe «Pasaje:» seguido del texto y, en otra línea, «Pregunta:» seguido de la consigna. También puedes conservar todo el enunciado en un solo bloque. Revisa el contenido y la rúbrica con el jurado antes de activar la etapa.</p>}
           </div>
 
           {tipo === 'multiple' && (

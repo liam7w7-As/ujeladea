@@ -647,7 +647,7 @@ a:hover {
 .joven-enunciado h1 { font-size: 1.45rem; line-height: 1.6; font-weight: 500; white-space: pre-wrap; }
 .joven-opciones { display: flex; flex-direction: column; gap: 12px; }
 .joven-opciones button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 16px 20px; border: 2px solid var(--color-border); border-radius: 12px; background: var(--color-bg-base); color: var(--color-text-primary); font: inherit; font-size: 1rem; text-align: left; cursor: pointer; }
-.joven-opciones button > span { flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--color-bg-surface); width: 32px; height: 32px; font-size: .82rem; }
+.joven-opciones button > span:first-child { flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--color-bg-surface); width: 32px; height: 32px; font-size: .82rem; }
 .joven-opciones button > svg { margin-left: auto; flex-shrink: 0; }
 .joven-opciones button.seleccionada { border-color: var(--color-accent); background: var(--color-accent-muted); }
 .joven-opciones button:focus-visible, .joven-nombres button:focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 4px; }
@@ -787,3 +787,89 @@ a:hover {
 .premiacion-avisos { display: block; }
 .premiacion-avisos ul { padding-left: 20px; margin: 12px 0; }
 .premiacion-avisos p { margin-bottom: 0; }
+
+/* Efesios: lectura, escritura y confirmaciones del participante. */
+.joven-busqueda { margin-bottom: 18px; }
+.joven-identidad { display: flex; align-items: center; gap: 12px; border: 1px solid var(--color-accent); border-radius: 12px; padding: 16px; margin: 18px 0; font-size: .85rem; }
+.joven-identidad svg { flex-shrink: 0; color: var(--color-accent-light); }
+.joven-identidad strong, .joven-identidad small { display: block; margin-top: 5px; }
+.joven-identidad small { color: var(--color-text-secondary); }
+.joven-formato { padding: 16px; border-radius: 10px; background: var(--color-bg-base); margin-top: 16px; font-size: .86rem; line-height: 1.8; }
+.joven-formato p + p { margin-top: 8px; }
+.joven-practica { border: 1px solid var(--color-border); padding: 20px; border-radius: 12px; margin-top: 24px; text-align: left; }
+.joven-practica summary { cursor: pointer; color: var(--color-accent-light); font-weight: 600; }
+.joven-practica summary svg { vertical-align: middle; margin-right: 8px; }
+.joven-practica h3 { font-size: 1rem; margin: 16px 0 8px; }
+.joven-practica p { font-size: .85rem; line-height: 1.7; }
+.joven-practica .btn { margin-top: 16px; }
+.joven-practica .joven-opciones { margin-top: 16px; }
+.acceso-pendiente .registro-confirmado { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.joven-acceso-progreso { padding: 14px; background: var(--color-bg-base); border-radius: 10px; font-size: .9rem; }
+.joven-examen-header { gap: 20px; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; }
+.joven-cabecera-identidad { flex: 1 1 7rem; min-width: 0; }
+.joven-cabecera-identidad .joven-libro { margin-bottom: 4px; }
+.joven-cabecera-identidad strong { font-size: 1.05rem; }
+.joven-reloj { padding: 9px 12px; }
+.joven-reloj.tiempo-corto { border-color: var(--color-accent); background: var(--color-accent-muted); }
+.joven-menu-ayuda { position: relative; flex-shrink: 0; }
+.joven-menu-ayuda > summary { display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--color-text-secondary); font-size: .65rem; list-style: none; cursor: pointer; }
+.joven-menu-ayuda > summary::-webkit-details-marker { display: none; }
+.joven-menu-contenido { position: absolute; right: 0; top: calc(100% + 16px); width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 120px); overflow-y: auto; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-raised); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+.joven-menu-contenido > p { font-size: .85rem; color: var(--color-text-secondary); line-height: 1.7; margin: 0 0 16px; }
+.joven-menu-contenido > .btn { width: 100%; justify-content: flex-start; margin-bottom: 12px; }
+.joven-menu-contenido .joven-ayuda-examen { margin: 0; padding: 12px; }
+.joven-menu-contenido .joven-instrucciones ol { grid-template-columns: 1fr; }
+.joven-examen-content { padding-top: 16px; }
+.joven-progreso-info { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--color-text-secondary); font-size: .75rem; }
+.joven-progreso { height: 4px; margin-bottom: 24px; }
+.joven-tiempo-aviso { color: var(--color-accent-light); background: var(--color-accent-muted); border-radius: 10px; padding: 12px 16px; font-size: .84rem; line-height: 1.6; margin-bottom: 18px; }
+.joven-tiempo-aviso:empty { display: none; }
+.joven-enunciado { padding: 26px; margin-bottom: 22px; border-top-color: var(--color-accent); }
+.joven-enunciado .eyebrow { font-size: .72rem; letter-spacing: .06em; margin-bottom: 14px; }
+.joven-enunciado h1 { font-size: 1.35rem; font-weight: 500; line-height: 1.65; overflow-wrap: anywhere; scroll-margin-top: 120px; }
+.joven-enunciado h1:focus { outline: none; }
+.joven-consigna { font-size: .82rem; color: var(--color-text-secondary); line-height: 1.7; margin-top: 16px; }
+.joven-pasaje { border-left: 3px solid var(--color-accent); padding: 16px 18px; background: var(--color-bg-base); border-radius: 0 10px 10px 0; margin-bottom: 22px; }
+.joven-pasaje > span { color: var(--color-accent-light); font-size: .75rem; font-weight: 600; }
+.joven-pasaje p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 1rem; margin-top: 10px; }
+.joven-opciones button > .joven-opcion-texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.joven-respuesta { border: 1px solid var(--color-border); background: var(--color-bg-base); border-radius: 12px; padding: 20px; }
+.joven-respuesta > p { font-size: .8rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 14px; }
+.joven-respuesta textarea { min-height: 260px; font-size: 1.05rem; line-height: 1.85; padding: 16px; background: var(--color-bg-deep); }
+.joven-respuesta.respuesta-contexto textarea { min-height: 320px; }
+.joven-respuesta textarea:focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 3px; }
+.joven-siguiente { margin-top: 22px; gap: 20px; padding: 16px 0 max(16px,env(safe-area-inset-bottom)); }
+.joven-guardado-titulo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.joven-guardado-titulo svg { flex-shrink: 0; }
+.joven-guardado-titulo strong { font-size: .82rem; font-weight: 500; }
+.joven-guardado.correcto { color: #9dd4ae; }
+.joven-guardado.aviso { color: var(--color-accent-light); }
+.joven-guardado p { font-size: .75rem; line-height: 1.6; }
+.joven-confirmacion-nota { font-size: .72rem; }
+.joven-aviso { display: flex; gap: 14px; align-items: center; }
+.joven-aviso .btn { width: auto; flex-shrink: 0; }
+.joven-ayuda-pendiente { color: var(--color-accent-light); font-size: .8rem; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; margin-bottom: 18px; }
+.joven-comprobante { margin: 24px 0; padding: 20px; background: var(--color-bg-base); border-radius: 12px; text-align: left; }
+.joven-comprobante > div + div { margin-top: 16px; }
+.joven-comprobante dt { font-size: .75rem; color: var(--color-text-secondary); margin-bottom: 5px; }
+.joven-comprobante dd { margin: 0; font-size: .9rem; overflow-wrap: anywhere; }
+.joven-comprobante code { font-size: .75rem; }
+.solicitudes-ayuda { padding: 20px; margin: 20px 0; border-color: var(--color-accent); }
+.solicitudes-ayuda h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.solicitud-ayuda { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-top: 1px solid var(--color-border); }
+.solicitud-ayuda p { font-size: .85rem; color: var(--color-text-secondary); margin-top: 6px; }
+.solicitud-ayuda .btn { width: auto; flex-shrink: 0; }
+@media (max-width: 600px) {
+  .joven-examen-header { gap: 10px; padding: 10px 16px; }
+  .joven-cabecera-identidad strong { font-size: .92rem; }
+  .joven-reloj { font-size: 1rem; padding: 8px; gap: 6px; }
+  .joven-examen-content { padding-top: 14px; }
+  .joven-enunciado { padding: 22px 18px; }
+  .joven-enunciado h1 { font-size: 1.16rem; }
+  .joven-respuesta { padding: 18px 14px; }
+  .joven-respuesta textarea { font-size: 1rem; padding: 14px; }
+  .joven-siguiente { gap: 10px; position: static; }
+  .joven-siguiente .btn { min-width: 0; }
+  .joven-aviso, .solicitud-ayuda { flex-direction: column; align-items: stretch; }
+  .solicitud-ayuda .btn { width: 100%; }
+}
