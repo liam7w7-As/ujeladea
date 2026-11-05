@@ -32,7 +32,7 @@ export default function Resultados() {
     try {
       const { generarReporteResultados, generarReporteIndividual } = await import('../../lib/pdf')
       const base = {
-        etapa,
+        etapa: { ...etapa, tiempo_limite: sesion.tiempo_limite, cantidad_preguntas: sesion.cantidad_preguntas },
         sesion: { sociedad: sesion.sociedades?.nombre || 'Sociedad', iglesia: sesion.sociedades?.iglesia || '', fecha: sesion.created_at },
       }
       if (participante) {

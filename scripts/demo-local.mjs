@@ -34,6 +34,8 @@ async function como(claims, fn, headers={}) {
 const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar','admin_premiacion_resumen','admin_premiacion_validar_pdf','admin_premiacion_vincular'])
 rpcs.add('examen_ayuda')
 rpcs.add('admin_examen_atender_ayuda')
+for (const nombre of ['admin_revision_resumen','admin_revision_siguiente','admin_revision_borrador','admin_revision_guardar']) rpcs.add(nombre)
+for (const nombre of ['admin_sesion_crear','admin_sesion_eliminar']) rpcs.add(nombre)
 async function rpc(nombre,args,claims,headers={}) {
   if(!rpcs.has(nombre))throw new Error('RPC no disponible en la demo')
   const keys=Object.keys(args)
@@ -46,7 +48,7 @@ await como(adminClaims,async tx=>{
   for(let k=0;k<45;k++) {
     const tipo=k<27?'multiple':k<37?'abierta':'contexto';const puntos={multiple:2,abierta:3,contexto:4}[tipo]
     const texto=tipo==='multiple'?'Pregunta de demostración '+(k+1)+'. Selecciona una opción para revisar el diseño.':tipo==='abierta'?'Pregunta de demostración '+(k+1)+'. Escribe un texto de muestra para comprobar el guardado automático.':'Pasaje:\nTexto de demostración para comprobar la lectura y la escritura. El pasaje oficial será preparado por los pastores.\n\nPregunta:\nPregunta de demostración '+(k+1)+'. Escribe una explicación de muestra sobre este contexto.'
-    await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.',puntos,JSON.stringify(tipo==='multiple'?[]:[{criterio:'Criterio ficticio de demostración',puntos}])])
+    await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.',puntos,JSON.stringify(tipo==='multiple'?[]:Array.from({length:puntos},(_,i)=>({criterio:'Criterio ficticio de demostración '+(i+1),puntos:1})))])
   }
   await tx.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[etapa.id])
 })
@@ -83,8 +85,8 @@ await rpc('examen_borrador',{p_intento:estadoCurso.intento.id,p_pregunta:estadoC
 await avanzar(intentoFinal.intento.id,claimsFinal,45)
 await avanzar(intentoOtro.intento.id,{sub:otroAlumno,is_anonymous:true},45)
 await como(adminClaims,tx=>tx.query("UPDATE public.sesiones SET estado='finalizado' WHERE id=$1",[final]))
-const calificables=(await db.query("SELECT r.id,q.puntaje FROM public.respuestas r JOIN public.intento_preguntas q ON q.id=r.intento_pregunta_id WHERE calificado_por='pendiente_ia' AND r.intento_id=$1",[intentoFinal.intento.id])).rows
-for(const respuesta of calificables)await rpc('admin_examen_calificar_rubrica',{p_respuesta:respuesta.id,p_puntos:[respuesta.puntaje],p_comentario:'Demostración local'},adminClaims)
+const calificables=(await db.query("SELECT r.id,q.rubrica FROM public.respuestas r JOIN public.intento_preguntas q ON q.id=r.intento_pregunta_id WHERE calificado_por='pendiente_ia' AND r.intento_id=$1",[intentoFinal.intento.id])).rows
+for(const respuesta of calificables)await rpc('admin_examen_calificar_rubrica',{p_respuesta:respuesta.id,p_puntos:respuesta.rubrica.map(c=>c.puntos),p_comentario:'Demostración local'},adminClaims)
 
 // Identidades ficticias emitidas solo por este proceso. No se aceptan JWT externos.
 const sesionesAuth=new Map(), refrescos=new Map(), firma=randomBytes(32)
@@ -196,7 +198,7 @@ async function rest(req,res,url) {
   if(req.method==='HEAD'){res.writeHead(200,headers);res.end();return}
   return json(res,singular?result.rows[0]:result.rows,200,headers)
 }
-const enlaces={panel:'/demo/entrar?vista=panel',registro:'/demo/entrar?vista=registro',examen:'/demo/entrar?vista=examen',finalizado:'/demo/entrar?vista=finalizado'}
+const enlaces={panel:'/demo/entrar?vista=panel',jurado:'/demo/entrar?vista=jurado',registro:'/demo/entrar?vista=registro',examen:'/demo/entrar?vista=examen',finalizado:'/demo/entrar?vista=finalizado'}
 const banner='<aside id="demo-local" style="position:relative;z-index:10000;padding:10px 16px;background:#42300d;color:#fff1cb;font:13px system-ui;display:flex;gap:15px;flex-wrap:wrap;align-items:center"><strong>DEMO LOCAL · Datos ficticios</strong><a style="color:inherit" href="/demo">Recorridos</a><a style="color:inherit" href="'+enlaces.panel+'">Panel</a><a style="color:inherit" href="'+enlaces.registro+'">Registro</a><a style="color:inherit" href="'+enlaces.examen+'">Examen</a><small>Los cambios se guardan solo durante esta ejecución.</small></aside>'
 const plugin={
   name:'ujeladea-demo-local',
@@ -209,16 +211,16 @@ const plugin={
         if(url.pathname==='/demo/estado')return json(res,{tipo:'demostración local, sin Supabase remoto',enlaces,espera,curso,final,etapa:etapa.id})
         if(url.pathname==='/demo/entrar') {
           const vista=url.searchParams.get('vista')
-          const admin=vista==='panel'
+          const admin=vista==='panel'||vista==='jurado'
           let claimsVista=admin?adminClaims:vista==='finalizado'?claimsFinal:claimsAlumno
           if(vista==='registro'){const uid=randomUUID();await db.query('INSERT INTO auth.users(id) VALUES($1)',[uid]);claimsVista={sub:uid,is_anonymous:true}}
           const session=authSession(claimsVista)
-          const destino=admin?'/admin/etapas':'/examen/'+(vista==='registro'?espera:vista==='finalizado'?final:curso)
+          const destino=vista==='jurado'?'/admin/sesion/'+final+'/calificar':admin?'/admin/etapas':'/examen/'+(vista==='registro'?espera:vista==='finalizado'?final:curso)
           const storage=admin?'sb-127-auth-token':'ujeladea_participante_auth_v2'
           return html(res,'<body style="background:#191920;color:white;font:18px system-ui;padding:40px"><p>Abriendo la demo…</p><script>localStorage.setItem('+JSON.stringify(storage)+','+JSON.stringify(JSON.stringify(session))+');'+(admin?'sessionStorage.setItem("ujeladea_etapa_admin_v2",'+JSON.stringify(etapa.id)+');':'')+'location.replace('+JSON.stringify(destino)+');</script></body>')
         }
-        if(url.pathname==='/demo')return html(res,'<body style="margin:0;background:#14141c;color:#eee;font:16px system-ui;line-height:1.7"><main style="max-width:780px;margin:60px auto;padding:24px"><p style="color:#e2b74f">UJELADEA · Revisión local de V2</p><h1>Recorre la nueva etapa de Efesios</h1><p>Esta demo utiliza datos ficticios en memoria. Las preguntas son ejemplos de interfaz; el banco pastoral se incorporará después.</p><nav style="display:grid;gap:14px;margin:32px 0">'+[['panel','Panel administrativo'],['registro','Registro y sala de espera del joven'],['examen','Examen en curso · pregunta 20'],['finalizado','Confirmación de examen finalizado']].map(([key,titulo])=>'<a style="color:#ffe3a1;padding:18px;border:1px solid #6b5130;border-radius:12px;text-decoration:none" href="'+enlaces[key]+'">'+titulo+' →</a>').join('')+'</nav><p>Para probar el examen, abre el panel en otra ventana y autoriza el acceso desde la sala de control. La recarga conserva la pregunta y requiere que el moderador autorice la nueva pantalla.</p><p>Los cambios duran mientras este servidor esté abierto. La sala de control se actualiza automáticamente cada 15 segundos. La demo no reproduce las conexiones Realtime de Supabase.</p><p style="font-size:14px;color:#bbb">Acceso manual al panel: '+EMAIL+' · '+PASSWORD+'. Son credenciales de demostración.</p></main></body>')
-        if(url.pathname.startsWith('/functions/v1/'))return json(res,{error:'La IA está desactivada en esta demo. Puedes calificar manualmente.'},503)
+        if(url.pathname==='/demo')return html(res,'<body style="margin:0;background:#14141c;color:#eee;font:16px system-ui;line-height:1.7"><main style="max-width:780px;margin:60px auto;padding:24px"><p style="color:#e2b74f">UJELADEA · Revisión local de V2</p><h1>Recorre la nueva etapa de Efesios</h1><p>Esta demo utiliza datos ficticios en memoria. Las preguntas son ejemplos de interfaz; el banco pastoral se incorporará después.</p><nav style="display:grid;gap:14px;margin:32px 0">'+[['panel','Panel administrativo'],['jurado','Mesa de corrección del jurado'],['registro','Registro y sala de espera del joven'],['examen','Examen en curso · pregunta 20'],['finalizado','Confirmación de examen finalizado']].map(([key,titulo])=>'<a style="color:#ffe3a1;padding:18px;border:1px solid #6b5130;border-radius:12px;text-decoration:none" href="'+enlaces[key]+'">'+titulo+' →</a>').join('')+'</nav><p>Para probar el examen, abre el panel en otra ventana y autoriza el acceso desde la sala de control. La recarga conserva la pregunta y requiere que el moderador autorice la nueva pantalla.</p><p>Los cambios duran mientras este servidor esté abierto. La sala de control se actualiza automáticamente cada 15 segundos. La demo no reproduce las conexiones Realtime de Supabase.</p><p style="font-size:14px;color:#bbb">Acceso manual al panel: '+EMAIL+' · '+PASSWORD+'. Son credenciales de demostración.</p></main></body>')
+        if(url.pathname.startsWith('/functions/v1/'))return json(res,{error:'La autocalificación está desactivada en esta demo. Puedes calificar manualmente.'},503)
         if(url.pathname.startsWith('/rest/v1/'))return await rest(req,res,url)
         const body=req.method==='GET'?{}:await cuerpo(req)
         if(url.pathname.endsWith('/settings'))return json(res,{disable_signup:false,external:{anonymous_users:true},mailer_autoconfirm:true})

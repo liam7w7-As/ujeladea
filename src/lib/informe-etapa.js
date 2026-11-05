@@ -1,4 +1,4 @@
-import { etiquetaEtapa, rankingEtapa } from './etapas.js'
+import { datosVigentes, etiquetaEtapa, rankingEtapa } from './etapas.js'
 
 // Proyección para informes de V2: no contiene enunciados, referencias ni respuestas.
 export function prepararInformeEtapa({ etapa, datos, emitidoAt = new Date(), ejemplo = false }) {
@@ -17,6 +17,7 @@ export function prepararInformeEtapa({ etapa, datos, emitidoAt = new Date(), eje
       || datos.respuestas.some(r => intentos.get(r.intento_id)?.participante_id !== r.participante_id || asignadas.get(r.intento_pregunta_id)?.intento_id !== r.intento_id)) {
     throw new Error('Los datos del informe no corresponden íntegramente a esta etapa.')
   }
+  datos = datosVigentes(datos)
   const discrepancias = datos.participantes.filter(p => {
     const total = datos.respuestas.filter(r => r.participante_id === p.id).reduce((s,r) => s + (r.puntaje_obtenido || 0),0)
     return total !== (p.puntaje_total || 0)
@@ -64,7 +65,7 @@ export function prepararInformeEtapa({ etapa, datos, emitidoAt = new Date(), eje
       'Nota individual: 100 por puntos obtenidos dividido entre el máximo de todas las preguntas asignadas, también las no respondidas. Los snapshots conservan los valores y rúbricas originales.',
       'Nota de sociedad: promedio de las notas individuales, con el mismo peso por joven. Se conserva precisión para ordenar y se muestran dos decimales.',
       'No se usa censo ni penalización automática por alertas. Las señales del navegador requieren revisión del moderador.',
-      'Opción múltiple: corrección automática. Respuestas abiertas y de contexto: criterios de la rúbrica y revisión del jurado. La IA solo sugiere.',
+      'Opción múltiple: corrección automática. Respuestas abiertas y de contexto: criterios de la rúbrica y revisión del jurado. La autocalificación solo sugiere.',
       'Los empates comparten posición. La velocidad, los eventos técnicos y el tamaño de la sociedad no otorgan ventajas ni descuentos.',
       'Las posiciones siguen siendo provisionales mientras la etapa esté abierta, haya notas pendientes o existan diferencias en los totales.',
     ],

@@ -5,7 +5,8 @@ Deno.serve(crearHandlerSugerencia({
   createClient,
   url: Deno.env.get('SUPABASE_URL') || '',
   publicKey: Deno.env.get('SUPABASE_ANON_KEY') || '',
+  serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
   providerKey: Deno.env.get('OPENROUTER_API_KEY') || '',
-  model: Deno.env.get('OPENROUTER_MODEL') || '',
-  origins: (Deno.env.get('EXAM_ALLOWED_ORIGINS') || '').split(',').map(s => s.trim()).filter(Boolean),
+  models: (Deno.env.get('OPENROUTER_MODELS') || Deno.env.get('OPENROUTER_MODEL') || '').split(','),
+  origins: (Deno.env.get('EXAM_ALLOWED_ORIGINS') || 'https://efesios.ujeladea.org,https://ujeladea.vercel.app').split(',').map(s => s.trim()).filter(Boolean),
 }))

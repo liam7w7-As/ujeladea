@@ -12,7 +12,7 @@ V2 y su panel por etapas se publicaron el 21 de octubre de 2026, por autorizaci�
 - Se conservó el acceso de la única cuenta administrativa heredada asignando el rol en `app_metadata`. Las sesiones previas necesitan volver a iniciar sesión para recibir ese rol en su token. El usuario habilitó el acceso anónimo y se confirmó mediante la API de Auth.
 - Todas las tablas públicas tienen RLS. Las consultas REST sin autenticar a preguntas, respuestas, etapas y archivos se rechazan. No hay funciones `SECURITY DEFINER` en `public`.
 - La página de ingreso en vivo se comprobó en Edge, escritorio y móvil: sin errores JavaScript, solicitudes fallidas ni desbordamiento horizontal; las rutas administrativas redirigen al ingreso cuando no hay sesión.
-- La integración completa del examen, Realtime y la carga entre dispositivos siguen pendientes. No se crearon sesiones ni intentos de prueba en producción. La función de sugerencias de IA aún no está desplegada/configurada; la revisión manual no depende de ella.
+- La integración completa del examen, Realtime y la carga entre dispositivos siguen pendientes. No se crearon sesiones ni intentos de prueba en producción. La función de sugerencias está desplegada desde noviembre y todavía requiere clave y modelos; la revisión manual no depende de ella.
 
 Los informes de restauración, hashes y comprobaciones del despliegue se guardaron fuera de Git en `.local-db/despliegue/`; el respaldo con datos personales permanece fuera del repositorio. El diagnóstico de seguridad solo señaló la [tabla privada de códigos sin políticas](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) (acceso deliberadamente denegado para clientes) y la [protección de contraseñas filtradas deshabilitada en Auth](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). Los índices recién creados aún no tienen estadísticas de uso.
 
@@ -22,6 +22,7 @@ Los informes de restauración, hashes y comprobaciones del despliegue se guardar
 - `20261020193925_v2_etapas_historial.sql`: archiva Hebreos sin recalcular, añade `etapa_id` a sesiones y preguntas, crea Efesios en borrador y prepara permisos e índices.
 - `20261021160006_v2_intentos_api_segura.sql`: intentos autenticados, snapshots, guardado idempotente, borradores, calificación transaccional y RPC de participantes/jurado.
 - `20261021170250_v2_panel_realtime.sql`: publica sesiones, participantes y eventos en Realtime sin sustituir publicaciones existentes, y añade la lectura administrativa consistente `admin_examen_sala`.
+- `20261105165405_revision_jurado_autocalificacion.sql`: pendiente de aplicar; mesa de revisión por sesión con reservas, borradores, consulta, confirmaciones idempotentes y presupuesto privado de US$5 para IA. No modifica notas existentes.
 
 El archivo histórico guarda preguntas, sociedades, sesiones, participantes, respuestas y alertas con sus valores originales. Incluye las respuestas repetidas de V1. No agrega una restricción única sobre esas respuestas ni decide cuáles serían válidas: esa revisión requiere un criterio explícito.
 
@@ -110,11 +111,28 @@ Los códigos de recuperación se almacenan con SHA-256 en una tabla privada con 
 
 ## Sugerencias de IA en servidor
 
-`supabase/functions/sugerir-calificacion` mantiene `verify_jwt = true`, verifica de nuevo al usuario mediante `auth.getUser` y exige `app_metadata.role = "admin"`. Usa el JWT del administrador y la clave pública para consultar la RPC de contexto bajo sus permisos; no necesita service_role.
+`supabase/functions/sugerir-calificacion` mantiene `verify_jwt = true`, verifica de nuevo al usuario mediante `auth.getUser` y exige `app_metadata.role = "admin"`. Usa el JWT del administrador y la clave pública para consultar la RPC de contexto bajo sus permisos. Solo después usa la credencial de servicio del servidor para reservar y liquidar presupuesto: esas dos RPC no están concedidas al navegador, ni siquiera al administrador.
 
-La función acepta exclusivamente un ID de respuesta, carga texto/referencia/máximo del servidor y solicita una sugerencia al proveedor. No escribe notas. El jurado confirma mediante la RPC de calificación. Los errores, JSON inválidos y notas fuera de rango se rechazan, y no se devuelven credenciales ni errores completos del proveedor.
+La función acepta exclusivamente un ID de respuesta y carga texto, referencia y rúbrica del servidor. Envía al proveedor únicamente ese contenido, sin nombre, sociedad o identificadores personales. Exige JSON estructurado, un resultado entero acotado para cada criterio y salida completa; deriva el total y rechaza criterios repetidos o ausentes. Nunca escribe notas. Los errores no se convierten en cero y no se devuelven credenciales ni errores completos del proveedor.
 
-Las variables de servidor están documentadas en `supabase/functions/.env.example`: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` y `EXAM_ALLOWED_ORIGINS`. No se usa prefijo VITE_. Sin IA configurada la revisión manual sigue funcionando. El código del handler tiene pruebas con Auth/proveedor simulados; el arranque de Edge Functions en Deno/Supabase real todavía debe probarse en el entorno aislado.
+Las variables están documentadas en `supabase/functions/.env.example`: `OPENROUTER_API_KEY`, `OPENROUTER_MODELS` (hasta tres IDs explícitos separados por coma) y `EXAM_ALLOWED_ORIGINS`. El singular `OPENROUTER_MODEL` se acepta para compatibilidad. Supabase proporciona `SUPABASE_SERVICE_ROLE_KEY` a la función; nunca se envía al cliente. No se usa prefijo VITE_. Sin configuración, la revisión manual sigue funcionando.
+
+### Configuración de la nueva mesa
+
+`20261105165405_revision_jurado_autocalificacion.sql` está aplicada en producción desde el 5 de noviembre de 2026. No recalifica datos: añade metadatos de revisión y tablas privadas con RLS, sin acceso directo del cliente. Sus wrappers públicos son invoker. La clave de agrupación incluye el origen y la instantánea de la pregunta; las posiciones aleatorias del examen no se usan para agrupar. Todas las operaciones de corrección validan sesión y etapa. Los borradores se guardan en sessionStorage por usuario/sesión/respuesta/revisión y luego en servidor; si el almacenamiento local está bloqueado, los cambios aún requieren llegar al servidor para sobrevivir a un cierre abrupto.
+
+El límite aprobado para Efesios es **US$5 total**, sin reinicio. Las reservas concurrentes cuentan antes de generar; se solicita el detalle de uso y el coste devuelto por OpenRouter se liquida al terminar. Si el coste no se conoce, se cuenta toda la reserva de forma conservadora. Una reserva interrumpida no se devuelve como crédito gratuito. La caché se identifica por respuesta, revisión, versión del evaluador y lista de modelos aprobados; una segunda consulta con esa configuración no repite la generación. No se agrupan notas ni se aprueban varias respuestas a la vez.
+
+Para habilitar la IA después del despliegue:
+
+1. Crear una clave **dedicada** de OpenRouter con límite vitalicio de hasta US$5 y sin reinicio automático. El servidor comprueba `GET /api/v1/key` antes de cualquier inferencia; una clave ilimitada, agotada o con límite periódico se rechaza. No reutilizar claves expuestas en otro frontend ni pegarlas en el chat.
+2. Guardar la clave y los IDs de modelos como secretos de la Edge Function en el dashboard de `torneo-inela`, nunca en las variables VITE del sitio. Incluir `https://efesios.ujeladea.org` en los orígenes permitidos.
+3. Elegir los modelos mediante una muestra de correcciones pastorales ya revisadas (respuestas completas, parciales, equivalentes, erróneas y ambiguas), comparar sus propuestas por criterio y configurar solo los aprobados. Que un modelo sea de pago no demuestra que califique mejor. No se ha certificado todavía un modelo con el banco real.
+4. La migración y `sugerir-calificacion` ya están desplegadas. Después de configurar secretos y modelos, verificar permisos, Auth, CORS y caché en la función real antes de usarla para calificar. Este desarrollo no ha consumido OpenRouter.
+
+Los intentos están limitados a tres modelos, 1.100 tokens de salida y 22 segundos por generación. Se filtran proveedores con JSON estricto, sin recopilación de datos declarada y precio de hasta US$2 por millón de tokens de entrada, US$10 de salida y cero cargo por petición. Un modelo que no disponga de un proveedor compatible puede fallar; no se elimina el filtro para forzar el consumo. Los errores 401/402/403 detienen el respaldo. El presupuesto puede agotarse antes de revisar todas las respuestas; la corrección manual continúa disponible.
+
+Referencias: [secretos de Supabase](https://supabase.com/docs/guides/functions/secrets), [salida estructurada](https://openrouter.ai/docs/guides/features/structured-outputs), [selección de proveedor y precios máximos](https://openrouter.ai/docs/guides/routing/provider-selection), [consulta de límites de la clave](https://openrouter.ai/docs/api-reference/limits).
 
 ## Validación de este bloque y preparación del entorno
 
@@ -184,3 +202,13 @@ La interfaz acumula 50/50 y conserva las notas de cada etapa. Las identidades se
 `20261105135900_experiencia_joven_efesios.sql` está aplicada en `torneo-inela`. Amplía exclusivamente los metadatos seguros de las RPC, el tipo de incidencias y sus índices. Agrega `examen_ayuda` y `admin_examen_atender_ayuda` con wrappers públicos invoker, lógica privada con validación de propiedad, pantalla autorizada y rol administrativo. La asistencia no se registra como señal del navegador, no descuenta puntos y no extiende el plazo.
 
 Antes y después de aplicarla se compararon las huellas de los datos originales, archivo, clasificación preservada y validación del PDF de Hebreos. Coincidieron todos los valores: 184 participantes y 7.139 respuestas. No hubo nuevos avisos de seguridad respecto de la revisión anterior. El identificador de la migración local coincide con el asignado por MCP; no se editó el historial interno de Supabase. La integración y carga con dispositivos físicos siguen pendientes.
+
+## Sesiones con configuración propia y eliminación
+
+`20261105165420_configuracion_sesiones.sql` está aplicada en `torneo-inela`. Añade `distribucion` y `eliminada_at` a sesiones, permite fijar minutos y preguntas por sesión y conserva el contrato de la RPC anterior. Los valores por defecto de las columnas proceden ahora del trigger que consulta la etapa, en lugar de los números heredados de V1. `admin_sesion_crear` y `admin_sesion_eliminar` son wrappers invoker con permisos administrativos comprobados en funciones privadas.
+
+Cada sesión guarda su distribución y la configuración no se modifica después de crearla. El reparto mantiene los pesos 27/10/8 y los puntos 2/3/4, ajustando los cupos al total elegido. La selección conserva instantáneas de preguntas y rúbricas; las notas se normalizan sobre el máximo asignado a cada intento.
+
+La eliminación marca `eliminada_at`, conserva auditoría y calificaciones originales, y no permite reabrirla. Los lectores, cálculos, archivos de cierre y vinculación para premiación omiten sus resultados. Los triggers bloquean nuevas escrituras sobre sus registros y las API de participantes impiden seguir usando el enlace. Los controles de nombres y de un intento por usuario excluyen sesiones eliminadas para permitir volver a participar. Las etapas cerradas e históricas siguen protegidas.
+
+Los archivos de migración usan las versiones asignadas por MCP; no se reescribió el historial interno. Se conservaron exactamente los campos originales de las sesiones de Hebreos; para comparar la huella de esas filas se excluyen únicamente las dos columnas nuevas. Coincidieron además archivo histórico, clasificación, validación del PDF, participantes, respuestas, preguntas y eventos. Efesios conservó su configuración original (45 preguntas, 60 minutos), las 60 preguntas recibidas y cero intentos; no se crearon sesiones de ensayo en producción. Informes privados en `.local-db/despliegue-sesiones/`.

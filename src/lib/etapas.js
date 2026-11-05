@@ -82,7 +82,7 @@ async function cargarDatosAbiertos(client, etapa, { sesionId, modo='detalle' } =
     const q=client.from('sesiones').select('*').eq('etapa_id',etapa.id)
     return sesionId ? q.eq('id',sesionId) : q
   }
-  const sesiones=await leerTodas(consultasSesiones)
+  const sesiones=(await leerTodas(consultasSesiones)).filter(s=>!s.eliminada_at)
   if(sesionId&&!sesiones.length)throw new Error('Esta sesión no pertenece a la etapa seleccionada.')
   // V2 consulta sus snapshots; no descarga todo el banco para calcular resultados.
   const preguntas=etapa.historica===false?[]:await leerTodas(()=>client.from('preguntas').select('*').eq('etapa_id',etapa.id))
@@ -96,9 +96,7 @@ async function cargarDatosAbiertos(client, etapa, { sesionId, modo='detalle' } =
   const respuestas=await porIds(client,'respuestas','participante_id',participantes.map(p=>p.id),columnas)
   const datos={sesiones,preguntas,sociedades,participantes,respuestas,eventos_sesion}
   if(etapa.historica===false&&modo!=='sesiones') {
-    datos.intentos=sesionId
-      ? await porIds(client,'intentos','sesion_id',[sesionId])
-      : await leerTodas(()=>client.from('intentos').select('*').eq('etapa_id',etapa.id))
+    datos.intentos=await porIds(client,'intentos','sesion_id',ids)
     datos.intento_preguntas=await porIds(client,'intento_preguntas','intento_id',datos.intentos.map(i=>i.id),modo==='detalle'?'*':'id,intento_id,pregunta_id,puntaje,posicion')
   }
   return datos
@@ -201,7 +199,20 @@ export function puntajeSesion(datos, id, indice = indiceDatos(datos)) {
   }
 }
 
+export function datosVigentes(datos) {
+  if (!datos.sesiones.some(s => s.eliminada_at)) return datos
+  const sesiones = datos.sesiones.filter(s => !s.eliminada_at), ids = new Set(sesiones.map(s => s.id))
+  const participantes = datos.participantes.filter(p => ids.has(p.sesion_id)), personas = new Set(participantes.map(p => p.id))
+  const intentos = datos.intentos?.filter(i => ids.has(i.sesion_id)), evaluaciones = new Set(intentos?.map(i => i.id))
+  return { ...datos, sesiones, participantes,
+    respuestas: datos.respuestas.filter(r => personas.has(r.participante_id)),
+    eventos_sesion: datos.eventos_sesion.filter(e => ids.has(e.sesion_id)),
+    ...(intentos ? { intentos, intento_preguntas: datos.intento_preguntas.filter(q => evaluaciones.has(q.intento_id)) } : {}),
+  }
+}
+
 export function rankingEtapa(datos) {
+  datos = datosVigentes(datos)
   if(Array.isArray(datos.intentos)) return rankingIndividualV2(datos)
   const indice = indiceDatos(datos)
   const sesiones = datos.sesiones.filter(s => s.estado === 'finalizado')

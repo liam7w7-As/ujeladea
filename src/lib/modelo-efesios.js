@@ -4,3 +4,16 @@ export const TIPOS = { multiple: 'Opción múltiple', abierta: 'Respuesta abiert
 export const esModeloNuevo = etapa => Number(etapa?.reglas?.version) >= 3
 export const nota100 = (puntos, maximo) => maximo > 0 ? 100 * puntos / maximo : 0
 export const formatoNota = valor => Number(valor || 0).toLocaleString('es-BO', { maximumFractionDigits: 2 })
+
+export function distribucionExamen(total) {
+  const n = Number(total)
+  if (!Number.isInteger(n) || n < 1 || n > 200) throw Error('Elige entre 1 y 200 preguntas.')
+  const tipos = Object.keys(DISTRIBUCION)
+  const cantidades = tipos.map(t => Math.max(n >= 3 ? 1 : 0, Math.floor(n * DISTRIBUCION[t] / 45)))
+  while (cantidades.reduce((s, v) => s + v, 0) < n) {
+    let elegido = 0
+    for (let i = 1; i < tipos.length; i++) if (n * DISTRIBUCION[tipos[i]] / 45 - cantidades[i] > n * DISTRIBUCION[tipos[elegido]] / 45 - cantidades[elegido]) elegido = i
+    cantidades[elegido]++
+  }
+  return Object.fromEntries(tipos.map((t, i) => [t, cantidades[i]]))
+}

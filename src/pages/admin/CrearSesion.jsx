@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useEtapa } from '../../context/etapa-context'
 import EtapaAviso from '../../components/EtapaAviso'
 import { ArrowLeft, Search, Plus, Trash2 } from 'lucide-react'
+import { distribucionExamen } from '../../lib/modelo-efesios'
 
 export default function CrearSesion() {
   const navigate = useNavigate()
@@ -26,7 +27,11 @@ export default function CrearSesion() {
   const [nuevoParticipante, setNuevoParticipante] = useState({ nombre: '', del_censo: false })
 
   // Configuración de examen
-  const configuracion = { tiempo_limite: etapa.tiempo_limite, cant_preguntas: etapa.cantidad_preguntas }
+  const [minutos, setMinutos] = useState(etapa.tiempo_limite)
+  const [preguntas, setPreguntas] = useState(etapa.cantidad_preguntas)
+  const configuracion = { tiempo_limite: Number(minutos), cant_preguntas: Number(preguntas) }
+  let distribucion
+  try { distribucion = distribucionExamen(preguntas) } catch { distribucion = null }
 
   useEffect(() => {
     let vigente = true
@@ -87,10 +92,12 @@ export default function CrearSesion() {
     setCargando(true)
     
     try {
-      const { data: sesionData, error: sesionError } = await supabase.rpc('admin_examen_crear_sesion', {
+      if (!Number.isInteger(Number(minutos)) || Number(minutos) < 1 || Number(minutos) > 240 || !distribucion) throw Error('Elige entre 1 y 240 minutos y entre 1 y 200 preguntas.')
+      const { data: sesionData, error: sesionError } = await supabase.rpc('admin_sesion_crear', {
         p_etapa: etapa.id,
         p_sociedad: sociedadSeleccionada.id,
         p_participantes: participantes.map(p => ({ nombre: p.nombre, del_censo: p.del_censo })),
+        p_minutos: Number(minutos), p_cantidad: Number(preguntas),
       })
       if (sesionError) throw sesionError
 
@@ -274,8 +281,9 @@ export default function CrearSesion() {
                 <span style={{ color: 'var(--color-accent)' }}>3.</span> Configuración de Examen
               </h2>
 
-              <dl className="etapa-stats"><div><dt>Duración de la etapa</dt><dd>{configuracion.tiempo_limite} min</dd></div><div><dt>Preguntas por joven</dt><dd>{configuracion.cant_preguntas}</dd></div></dl>
-              <p className="etapa-help">Estos valores se definen en la configuración de la etapa.</p>
+              <div className="etapa-form-grid"><label className="form-label">Duración en minutos<input className="form-input" type="number" min={1} max={240} step={1} value={minutos} onChange={e => setMinutos(e.target.value)}/></label><label className="form-label">Preguntas por joven<input className="form-input" type="number" min={1} max={200} step={1} value={preguntas} onChange={e => setPreguntas(e.target.value)}/></label></div>
+              {distribucion && <p className="etapa-help">{configuracion.cant_preguntas} preguntas: {distribucion.multiple} múltiples · {distribucion.abierta} abiertas · {distribucion.contexto} de contexto.</p>}
+              <p className="etapa-help">Estos valores se aplican solo a esta sesión y quedan fijos al crearla. Con 3 preguntas o más se incluyen los tres tipos.</p>
 
               <div className="divider" />
 

@@ -59,7 +59,7 @@ async function simular(context) {
   try{
     if(url.pathname.startsWith('/rest/v1/rpc/')){
       const nombre=url.pathname.split('/').at(-1)
-      if(!/^(?:admin_)?examen_[a-z_]+$/.test(nombre))return json({message:'RPC desconocida'},404)
+      if(!/^(?:(?:admin_)?examen_|admin_revision_)[a-z_]+$/.test(nombre))return json({message:'RPC desconocida'},404)
       const data=await rpc(nombre,req.postDataJSON() || {},claimsRequest(req))
       if(nombre==='examen_responder'&&perderConfirmacion){perderConfirmacion=false;return route.abort('failed')}
       return json(data)
@@ -186,10 +186,10 @@ try{
  await page.getByRole('button',{name:'Ingresar al panel'}).click()
  await page.getByRole('button',{name:'Ingresar a Efesios'}).click()
  await page.goto('http://127.0.0.1:4174/admin/sesion/'+sesion+'/calificar')
- await expect(page.getByRole('heading',{name:'Calificar respuestas'})).toBeVisible()
- await page.getByRole('spinbutton',{name:'Puntaje del jurado'}).first().fill('7')
- await page.getByRole('button',{name:'Guardar calificación'}).first().click()
- await expect(page.getByText('20 pendientes',{exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Corrección por pregunta'})).toBeVisible()
+ await page.getByRole('group',{name:'Criterio 1',exact:true}).getByRole('button',{name:'7 pt',exact:true}).click()
+ await page.getByRole('button',{name:'Guardar y siguiente',exact:true}).click()
+ await expect(page.locator('.jurado-estado')).toContainText('20 por calificar')
  ok('el jurado guarda la calificación mediante RPC y actualiza la suma',(await db.query('SELECT puntaje_total FROM public.participantes WHERE id=(SELECT participante_id FROM public.intentos WHERE id=$1)',[intento])).rows[0].puntaje_total===7)
  await page.goto('http://127.0.0.1:4174/examen/'+sesion+'/finalizado')
  await expect(page.getByRole('heading',{name:'Tu examen ha finalizado'})).toBeVisible()

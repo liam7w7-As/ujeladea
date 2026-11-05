@@ -54,10 +54,10 @@ async function mock(context) {
    const body = req.postDataJSON() || {}
    return json(session(body.email || 'admin@prueba.local', body.email !== 'sin-rol@prueba.local'))
   }
-  if (url.pathname === '/rest/v1/rpc/admin_examen_crear_sesion' && method === 'POST') {
+  if (['/rest/v1/rpc/admin_examen_crear_sesion','/rest/v1/rpc/admin_sesion_crear'].includes(url.pathname) && method === 'POST') {
     const body = req.postDataJSON()
     const etapa = db.etapas.find(e => e.id === body.p_etapa)
-    const sesion = { id: randomUUID(), etapa_id: etapa.id, sociedad_id: body.p_sociedad, estado: 'esperando', cantidad_preguntas: etapa.cantidad_preguntas, tiempo_limite: etapa.tiempo_limite, created_at: new Date().toISOString() }
+    const sesion = { id: randomUUID(), etapa_id: etapa.id, sociedad_id: body.p_sociedad, estado: 'esperando', cantidad_preguntas: body.p_cantidad ?? etapa.cantidad_preguntas, tiempo_limite: body.p_minutos ?? etapa.tiempo_limite, created_at: new Date().toISOString() }
     db.sesiones.push(sesion)
     db.participantes.push(...body.p_participantes.map(p => ({ id: randomUUID(), sesion_id: sesion.id, ...p, registrado_at: null, seed: null, examen_finalizado: false, puntaje_total: 0 })))
     return json({ sesion_id: sesion.id })

@@ -1,4 +1,4 @@
-import { rankingEtapa } from './etapas.js'
+import { datosVigentes, rankingEtapa } from './etapas.js'
 
 function posiciones(filas) {
   const elegibles = filas.filter(f => f.total !== null).sort((a,b) => b.total-a.total || a.nombre.localeCompare(b.nombre))
@@ -15,6 +15,7 @@ function posiciones(filas) {
 
 // Hebreos ya llega con su resultado V1 congelado. No se recalifica ni se redondea otra vez.
 export function calcularPremiacion(resumen, datos, etapa) {
+  datos = datosVigentes(datos)
   const ranking = rankingEtapa(datos)
   const anteriores = new Map()
   for (const h of resumen.hebreos.sociedades) {

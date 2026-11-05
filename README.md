@@ -1,13 +1,23 @@
 # Torneo Bíblico UJELADEA
 
-Versión 2 para la segunda etapa, **Efesios**, con historial separado de **Hebreos**. La aplicación usa React, Vite y Supabase. Publicada el 21 de octubre de 2026 en [ujeladea.vercel.app](https://ujeladea.vercel.app/admin/login), con las migraciones V2 aplicadas a `torneo-inela`. Hebreos permanece cerrado y Efesios en borrador, sin preguntas reales todavía.
+Versión 2 para la segunda etapa, **Efesios**, con historial separado de **Hebreos**. La aplicación usa React, Vite y Supabase. El dominio oficial del examen es [efesios.ujeladea.org](https://efesios.ujeladea.org/admin/login); el dominio anterior de Vercel sigue activo. Hebreos permanece cerrado y sus resultados validados se conservan intactos. El banco pastoral de Efesios ya contiene 60 preguntas reales, importadas en borrador desde el PDF aprobado.
+
+## Mesa del jurado y sesiones · 5 de noviembre
+
+La rama `etapa-2` incorpora una mesa por pregunta dentro de la sesión de cada sociedad: una respuesta a la vez, identidad oculta, criterios sin puntaje inicial, borradores recuperables, cola de consulta y Guardar y siguiente. Las reservas separan a jurados o pestañas y caducan en 90 segundos sin actividad; las notas tienen control de revisión, confirmación idempotente y auditoría. La segunda revisión muestra la nota anterior y exige confirmación individual.
+
+La IA propone puntos, evidencia y justificación por criterio. Usar una propuesta solo rellena el borrador; nunca guarda una nota. Su presupuesto vitalicio autorizado es US$5 para Efesios, con reservas en la base y una clave dedicada de OpenRouter con límite vitalicio de hasta US$5, sin reinicio. Se admiten hasta tres modelos aprobados, respuestas estructuradas y respaldo acotado; un error de cuota detiene los intentos. No se han hecho llamadas de inferencia ni consumido saldo durante la implementación.
+
+Las migraciones `20261105165405_revision_jurado_autocalificacion.sql` y `20261105165420_configuracion_sesiones.sql` están aplicadas a `torneo-inela`. La función de sugerencias está desplegada con validación de JWT; falta configurar la clave dedicada y los modelos para habilitar autocalificación. La interfaz se publica mediante `main` y la corrección manual funciona sin esa configuración. Las instrucciones de configuración, los límites y la validación de modelos están en [supabase/README.md](supabase/README.md). Para revisar la demo aislada: `UJELADEA_DEMO_PORT=5181` y `npm run dev:demo` (en PowerShell, asignar el puerto mediante `$env:UJELADEA_DEMO_PORT='5181'`). La [mesa del jurado](http://127.0.0.1:5181/demo/entrar?vista=jurado) usa datos ficticios y no consume OpenRouter.
+
+Validación de esta entrega: 152 pruebas de Node, lint, build y `deno check` correctos. `scripts/verify-revision-jurado-ui.mjs` cubre 13 comprobaciones en Edge, entre ellas dos jurados, confirmación perdida, consulta, borradores, propuesta de IA simulada y móvil; las regresiones del examen y supervisión completan otras 30. Estos ensayos no sustituyen la integración de la función real ni la carga con dispositivos físicos.
 
 ## Entrega de Efesios y premiación
 
-Las seis migraciones están aplicadas a `torneo-inela`. Esta entrega incorpora `20261021211025_v3_efesios_supervision_evaluacion.sql` y `20261021211034_premiacion_acumulada_historial.sql`; la interfaz se publica mediante `main` y la rama de trabajo se llama `etapa-2`. Los archivos locales usan las versiones asignadas por Supabase, cuyo historial interno se dejó intacto.
+Las migraciones de V2 y de la experiencia del joven están aplicadas a `torneo-inela`. La entrega de octubre incorporó `20261021211025_v3_efesios_supervision_evaluacion.sql` y `20261021211034_premiacion_acumulada_historial.sql`; la interfaz se publica mediante `main` y la rama de trabajo se llama `etapa-2`. Los archivos de las migraciones publicadas usan las versiones asignadas por Supabase, cuyo historial interno se dejó intacto.
 
 - 45 preguntas aleatorias por intento: 27 múltiples (2 puntos), 10 abiertas (3) y 8 de contexto (4). Máximo 116, nota normalizada sobre 100 y orden mezclado persistente por joven.
-- El banco se valida por cupo y valor; las preguntas escritas activas necesitan rúbrica. Al activar, banco y criterios quedan fijos. Los pastores aún deben incorporar el contenido real y revisar su dificultad y versión bíblica.
+- El banco se valida por cupo y valor; las preguntas escritas activas necesitan rúbrica. Al activar, banco y criterios quedan fijos. El PDF recibido ya se importó: 35 múltiples, 15 abiertas y 10 de contexto. Corresponde al jurado confirmar su cobertura, dificultad y versión bíblica antes de activar.
 - Inicio compacto, entrada a Efesios, Hebreos bloqueado en la aplicación y por RLS para el rol administrativo de la app, sin selector para cambiar de etapa. Sus datos originales permanecen guardados.
 - Registro y reingreso supervisados. El moderador puede añadir nombres durante la sesión, mostrar el QR general, autorizar una pantalla o emitir un QR personal temporal de un uso. Las recuperaciones conservan el cierre común.
 - Las autorizaciones, justificaciones y revisiones se auditan. Un incidente puede justificarse sin conceder acceso automáticamente. La corrección oculta la identidad, usa criterios y detecta una revisión desactualizada antes de sobrescribir una nota.
@@ -90,7 +100,7 @@ El informe nuevo tiene ejemplos sintéticos reproducibles con `node scripts/veri
 
 ## Antes de desplegar
 
-Preparar el banco y la rúbrica de Efesios, confirmar las reglas del examen y completar la integración y carga con varios dispositivos antes del evento. La creación del entorno aislado se aplazó por indicación del usuario. El despliegue anterior de V2 conserva los datos de Hebreos. La restricción de lectura histórica está aplicada. El resumen de resultados de Hebreos se consulta exclusivamente desde Premiación. La IA sigue pendiente de configuración y despliegue de su función; la revisión manual está disponible. No ejecutar `db reset --linked` sobre producción.
+Revisar el banco y la rúbrica importados antes de activar Efesios, y completar la integración y carga con varios dispositivos antes del evento. La creación del entorno aislado se aplazó por indicación del usuario. El despliegue anterior de V2 conserva los datos de Hebreos. La restricción de lectura histórica está aplicada. El resumen de resultados de Hebreos se consulta exclusivamente desde Premiación. La autocalificación sigue pendiente de configurar su clave y modelos; la revisión manual no depende de la IA. No ejecutar `db reset --linked` sobre producción.
 
 ## Premiación de las dos etapas
 
@@ -113,3 +123,11 @@ La migración `20261105135900_experiencia_joven_efesios.sql` agrega metadatos y 
 Verificación reproducible: `npm test`, `npm run lint`, `npm run build` y, con la demo aislada iniciada, `node scripts/verify-joven-ux.mjs`. La prueba de navegador recorre las 45 preguntas, pérdida de conexión, retorno de confirmación perdido, recuperación en la pregunta 20 y constancia final. Las capturas se guardan en `.local-db/joven-ux/`. El viewport reducido prueba la distribución, pero no sustituye un ensayo en teléfonos físicos ni una prueba de carga de Supabase.
 
 Verificación de publicación del 5 de noviembre de 2026: 116 pruebas de Node, lint y compilación correctos; 41 comprobaciones de navegador entre UX, supervisión y regresión. Las huellas de participantes, respuestas, preguntas, sesiones, eventos, archivo, clasificación preservada y validación del PDF de Hebreos coincidieron antes y después de la migración (184 participantes y 7.139 respuestas). La versión del archivo de migración coincide con la asignada por Supabase MCP. Los informes de producción quedan en `.local-db/despliegue-ux/`, fuera de Git. Sigue pendiente el ensayo en teléfonos físicos y la prueba de carga real.
+
+## Configuración y eliminación de sesiones · 5 de noviembre de 2026
+
+En Nueva sesión → Configuración de examen, el administrador puede editar minutos (1–240) y preguntas (1–200). Los valores iniciales proceden de la etapa. Cada sesión conserva su duración y distribución; las preguntas se reparten según el formato de Efesios y desde tres preguntas se incluyen los tres tipos. La configuración se fija al crear la sesión, sin cambiar otros exámenes. El banco debe cubrir los cupos del reparto. Las instrucciones, el reloj, el contador, las asignaciones y el informe usan la configuración de esa sesión.
+
+Eliminar sesión, con confirmación escrita, la retira del panel, ranking, informes y premiación, y bloquea el QR y las escrituras desde pantallas antiguas. Se pueden volver a usar los nombres y dispositivos después de retirarla. La eliminación es una baja lógica para conservar la trazabilidad; no se recalifican sus respuestas. Hebreos y las etapas cerradas no admiten esta operación.
+
+Verificación: 152 pruebas de Node, lint, build y Deno correctos; ocho comprobaciones nuevas del flujo normal en navegador de escritorio y viewport móvil, incluyendo creación con 6 preguntas/3 minutos, registro, autorización, entrega y eliminación. Las regresiones del panel y examen completaron otras 38 comprobaciones. El ensayo no sustituye la prueba en dispositivos físicos ni acredita carga de 150 participantes. Antes y después de migrar coincidieron las 13 verificaciones de Hebreos y las huellas de la configuración y el banco de Efesios; permanecieron 184 participantes históricos, 7.139 respuestas y 60 preguntas reales sin cambios.
