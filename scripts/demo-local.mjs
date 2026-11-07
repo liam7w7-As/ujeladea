@@ -50,7 +50,7 @@ await como(adminClaims,async tx=>{
     const texto=tipo==='multiple'?'Pregunta de demostración '+(k+1)+'. Selecciona una opción para revisar el diseño.':tipo==='abierta'?'Pregunta de demostración '+(k+1)+'. Escribe un texto de muestra para comprobar el guardado automático.':'Pasaje:\nTexto de demostración para comprobar la lectura y la escritura. El pasaje oficial será preparado por los pastores.\n\nPregunta:\nPregunta de demostración '+(k+1)+'. Escribe una explicación de muestra sobre este contexto.'
     await tx.query('INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)',[etapa.id,tipo,texto,tipo==='multiple'?JSON.stringify(['Opción de muestra A','Opción de muestra B','Opción de muestra C','Opción de muestra D']):null,tipo==='multiple'?'Opción de muestra A':'Referencia de demostración. El contenido y la rúbrica oficiales se incorporarán después.',puntos,JSON.stringify(tipo==='multiple'?[]:Array.from({length:puntos},(_,i)=>({criterio:'Criterio ficticio de demostración '+(i+1),puntos:1})))])
   }
-  await tx.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[etapa.id])
+  // V3 funciona por sesión sin una activación global.
 })
 async function nuevaSala(sociedad,nombres) {
   return (await rpc('admin_examen_crear_sesion',{p_etapa:etapa.id,p_sociedad:sociedad,p_participantes:nombres.map(nombre=>({nombre,del_censo:true}))},adminClaims)).sesion_id
@@ -248,7 +248,7 @@ const plugin={
 }
 let server
 try {
-  server=await createServer({configFile:false,envFile:false,plugins:[react(),plugin],define:{
+  server=await createServer({configFile:false,envFile:false,cacheDir:'.local-db/vite-demo-'+PORT,plugins:[react(),plugin],define:{
     'import.meta.env.VITE_SUPABASE_URL':JSON.stringify(ORIGIN),
     'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY':JSON.stringify('sb_publishable_demo_local_only'),
     'import.meta.env.VITE_SUPABASE_ANON_KEY':JSON.stringify(''),

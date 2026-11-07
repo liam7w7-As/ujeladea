@@ -10,7 +10,6 @@ async function fixture(){
  const e=(await db.query("SELECT * FROM public.etapas WHERE libro='Efesios'")).rows[0]
  const sociedad=(await db.query("INSERT INTO public.sociedades(nombre,iglesia) VALUES('Sociedad V3','Pruebas') RETURNING id")).rows[0].id
  for(const [tipo,n,puntos] of [['multiple',33,2],['abierta',12,3],['contexto',10,4]])for(let k=0;k<n;k++)await db.query("INSERT INTO public.preguntas(etapa_id,tipo,texto,opciones,respuesta_correcta,puntaje,rubrica) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb)",[e.id,tipo,tipo+' '+k,tipo==='multiple'?JSON.stringify(['Correcta','Alternativa']):null,'Correcta',puntos,JSON.stringify(tipo==='multiple'?[]:[{criterio:'Explicación esperada',puntos}])])
- await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[e.id]))
  async function rpc(uid,name,args=[],inst=instancias[users.indexOf(uid)]){
   return asRole(db,'authenticated',uid===adminClaims.sub?adminClaims:{sub:uid},async()=>{
    await db.query("SELECT set_config('request.headers',$1,false)",[JSON.stringify(inst?{'x-examen-instancia':inst}:{})])
@@ -26,8 +25,8 @@ test('Efesios V3: distribución, autorización, rúbricas, tardanza y recuperaci
  const f=await fixture();const {db,e,users,instancias,rpc,admin,sesion,ids}=f
  try{
  let a,b
- await t.test('el banco se congela al activar y no acepta valores fuera de la etapa',async()=>{
-  await assert.rejects(asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.preguntas SET texto='Cambio' WHERE etapa_id=$1",[e.id])),/quedan fijos/)
+ await t.test('el banco admite revisiones y mantiene los puntajes de cada tipo',async()=>{
+  await assert.rejects(asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.preguntas SET puntaje=99 WHERE etapa_id=$1",[e.id])),/puntaje/)
  })
  await t.test('un registro requiere validación del moderador y no expone preguntas',async()=>{
   a=await rpc(users[0],'examen_registrar',[sesion,ids[0]])

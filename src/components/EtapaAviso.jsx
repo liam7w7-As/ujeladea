@@ -9,6 +9,6 @@ export default function EtapaAviso() {
     {soloLectura ? <Archive size={19} /> : <BookOpen size={19} />}
     <div><strong>{etiquetaEtapa(etapa)}</strong><p>{soloLectura
       ? 'Historial de solo lectura. Se conservan los datos y criterios de V1, incluidas sus respuestas repetidas.'
-      : etapa.estado === 'borrador' ? 'Etapa en preparación. Completa su banco y configuración antes de activarla.' : 'Trabajando dentro de esta etapa.'}</p></div>
+      : Number(etapa.reglas?.version)>=3 ? 'Cada sesión tiene su propio tiempo y cantidad de preguntas. El reloj comienza al iniciar el examen en la sala.' : etapa.estado === 'borrador' ? 'Etapa en preparación. Completa su banco y configuración antes de activarla.' : 'Trabajando dentro de esta etapa.'}</p></div>
   </div>
 }

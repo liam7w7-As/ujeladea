@@ -24,8 +24,8 @@ try{
  for(const nombre of [nombrePC,nombreCelular]){await panel.getByPlaceholder('Nombre del participante...').fill(nombre);await panel.getByRole('button',{name:'Agregar participante',exact:true}).click()}
  await panel.getByRole('button',{name:'Continuar',exact:true}).click()
  await expect(panel.getByLabel('Duración en minutos')).toHaveValue('60');await expect(panel.getByLabel('Preguntas por joven')).toHaveValue('45')
- await panel.getByLabel('Duración en minutos').fill('3');await panel.getByLabel('Preguntas por joven').fill('6')
- await expect(panel.getByText('6 preguntas: 4 múltiples · 1 abiertas · 1 de contexto.')).toBeVisible()
+ await panel.getByLabel('Duración en minutos').fill('2');await panel.getByLabel('Preguntas por joven').fill('10')
+ await expect(panel.getByText('10 preguntas: 6 múltiples · 2 abiertas · 2 de contexto.')).toBeVisible()
  if((await panel.locator('body').innerText()).includes('Sesión de prueba'))throw Error('Se añadió una modalidad no solicitada')
  await panel.screenshot({path:dir+'/configuracion.png',fullPage:true});ok('minutos y preguntas editables por sesión normal; predeterminados 60/45')
  const respuesta=panel.waitForResponse(r=>r.url().endsWith('/rpc/admin_sesion_crear'))
@@ -33,26 +33,26 @@ try{
  await expect(panel.getByRole('heading',{name:'Sala de control'})).toBeVisible()
  await expect(panel.getByRole('dialog',{name:'Acceso a la sesión'})).toBeVisible()
  await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
- ok('crea la sesión normal y su QR con seis preguntas y tres minutos')
- for(const [p,nombre] of [[pc,nombrePC],[celular,nombreCelular]]){await p.goto(base+'/examen/'+id,{waitUntil:'networkidle'});await p.getByRole('button',{name:nombre,exact:true}).click();await p.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(p.getByRole('heading',{name:'Esperando autorización'})).toBeVisible();await aprobar(nombre);await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Registro confirmado',{exact:true})).toBeVisible();await expect(p.getByText('6 preguntas',{exact:true})).toBeVisible()}
- ok('PC y celular simulado recorren el registro y la autorización normales con seis preguntas')
+ ok('crea la sesión normal y su QR con diez preguntas y dos minutos')
+ for(const [p,nombre] of [[pc,nombrePC],[celular,nombreCelular]]){await p.goto(base+'/examen/'+id,{waitUntil:'networkidle'});await p.getByRole('button',{name:nombre,exact:true}).click();await p.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(p.getByRole('heading',{name:'Esperando autorización'})).toBeVisible();await aprobar(nombre);await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Registro confirmado',{exact:true})).toBeVisible();await expect(p.getByText('10 preguntas',{exact:true})).toBeVisible()}
+ ok('PC y celular simulado recorren el registro y la autorización normales con diez preguntas')
  await panel.getByRole('button',{name:'Iniciar examen',exact:true}).click();await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
- for(const p of [pc,celular]){await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Pregunta 1 de 6',{exact:true})).toBeVisible()}
+ for(const p of [pc,celular]){await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Pregunta 1 de 10',{exact:true})).toBeVisible()}
  await celular.screenshot({path:dir+'/celular.png',fullPage:true});if(await celular.evaluate(()=>globalThis.document.documentElement.scrollWidth>globalThis.innerWidth))throw Error('Desbordamiento en celular')
- ok('ambos empiezan con contador 1 de 6; móvil sin desbordamiento')
- for(const p of [pc,celular])for(let i=1;i<=6;i++){
-  await expect(p.getByText('Pregunta '+i+' de 6',{exact:true})).toBeVisible()
+ ok('ambos empiezan con contador 1 de 10; móvil sin desbordamiento')
+ for(const p of [pc,celular])for(let i=1;i<=10;i++){
+  await expect(p.getByText('Pregunta '+i+' de 10',{exact:true})).toBeVisible()
   const opciones=p.getByRole('group',{name:'Opciones de respuesta'}).getByRole('button')
   if(await opciones.count())await opciones.first().click();else await p.getByRole('textbox',{name:'Tu respuesta'}).fill('Respuesta sintética para comprobar el flujo normal completo.')
-  await p.getByRole('button',{name:i===6?'Confirmar y finalizar':'Confirmar y continuar'}).click()
-  if(i===6)await p.getByRole('dialog').getByRole('button',{name:'Confirmar entrega',exact:true}).click()
+  await p.getByRole('button',{name:i===10?'Confirmar y finalizar':'Confirmar y continuar'}).click()
+  if(i===10)await p.getByRole('dialog').getByRole('button',{name:'Confirmar entrega',exact:true}).click()
  }
  for(const p of [pc,celular])await expect(p.getByRole('heading',{name:'Tu examen ha finalizado'})).toBeVisible()
- ok('los dos completan seis respuestas y llegan a la entrega final normal')
+ ok('los dos completan diez respuestas y llegan a la entrega final normal')
  await panel.getByRole('button',{name:'Finalizar para todos'}).click();await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
  await panel.goto(base+'/admin/dashboard',{waitUntil:'networkidle'})
  const tarjeta=panel.locator('article.etapa-session').filter({has:panel.getByRole('heading',{name:nombreSoc,exact:true})})
- await expect(tarjeta).toContainText('6 preguntas · 3 min');await tarjeta.getByRole('button',{name:'Eliminar sesión',exact:true}).click()
+ await expect(tarjeta).toContainText('10 preguntas · 2 min');await tarjeta.getByRole('button',{name:'Eliminar sesión',exact:true}).click()
  await expect(panel.getByRole('dialog').getByRole('button',{name:'Confirmar eliminación'})).toBeDisabled()
  await panel.getByLabel('Escribe ELIMINAR para confirmar').fill('ELIMINAR');await panel.getByRole('dialog').getByRole('button',{name:'Confirmar eliminación'}).click()
  await expect(panel.getByRole('dialog')).toHaveCount(0);await expect(tarjeta).toHaveCount(0)

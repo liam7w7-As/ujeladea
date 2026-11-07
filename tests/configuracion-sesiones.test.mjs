@@ -24,25 +24,25 @@ async function fixture(){
  return{db,e,sociedad,users,instances,rpc,crear,actualizar,datos}
 }
 
-test('acceso distingue preparación, registro y cierre sin adelantar el reloj ni exponer nombres',async t=>{
+test('acceso por sesión sin activar la etapa; autorización, reloj y cierre',async t=>{
  const {db,e,rpc,crear,actualizar,users}=await fixture()
  try{
  const id=await crear(10,2),antes=(await db.query('SELECT to_jsonb(s) s FROM public.sesiones s WHERE id=$1',[id])).rows[0].s
- await t.test('preparación explica el bloqueo y conserva la sesión intacta',async()=>{
+ await t.test('crear una sesión habilita el registro sin adelantar el reloj',async()=>{
   const sala=await rpc('examen_sala',[id],users[0])
-  assert.equal(sala.disponible,false);assert.equal(sala.etapa.estado,'borrador');assert.equal(sala.motivo_no_disponible,'etapa_en_preparacion');assert.deepEqual(sala.participantes,[])
-  assert.equal(sala.sesion.iniciado_at,null);assert.equal(sala.sesion.vence_at,null);assert.equal(estadoAccesoSesion(sala).esperar,true)
+  assert.equal(sala.disponible,true);assert.equal(sala.etapa.estado,'borrador');assert.equal(sala.motivo_no_disponible,null);assert.equal(sala.participantes.length,2)
+  assert.equal(sala.sesion.iniciado_at,null);assert.equal(sala.sesion.vence_at,null);assert.equal(estadoAccesoSesion(sala).esperar,false)
   assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'borrador')
   assert.deepEqual((await db.query('SELECT to_jsonb(s) s FROM public.sesiones s WHERE id=$1',[id])).rows[0].s,antes)
   const p=(await db.query('SELECT id FROM public.participantes WHERE sesion_id=$1 LIMIT 1',[id])).rows[0].id
-  await assert.rejects(rpc('examen_registrar',[id,p],users[0]),/no está disponible/)
+  const registro=await rpc('examen_registrar',[id,p],users[0]);assert.equal(registro.pregunta,null);assert.equal(registro.acceso.pendiente,true)
   await assert.rejects(rpc('admin_examen_sala',[id,e.id],users[0]),{code:'42501'})
  })
- await t.test('activar habilita el registro y refresca el panel sin iniciar el examen',async()=>{
-  await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[e.id]))
-  const sala=await rpc('examen_sala',[id],users[0])
-  assert.equal(sala.disponible,true);assert.equal(sala.motivo_no_disponible,null);assert.equal(sala.participantes.length,2);assert.equal(sala.sesion.iniciado_at,null)
-  assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'activa');assert.equal(estadoAccesoSesion(sala).titulo,'Selecciona tu nombre')
+ await t.test('el moderador autoriza sin ninguna activación global',async()=>{
+  const intento=(await db.query('SELECT id FROM public.intentos WHERE sesion_id=$1',[id])).rows[0].id;await rpc('admin_examen_autorizar',[intento,'Identidad verificada para esta sesión'])
+  const sala=await rpc('examen_sala',[id],users[1])
+  assert.equal(sala.disponible,true);assert.equal(sala.motivo_no_disponible,null);assert.equal(sala.participantes.length,1);assert.equal(sala.sesion.iniciado_at,null)
+  assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'borrador');assert.equal(estadoAccesoSesion(sala).titulo,'Selecciona tu nombre')
  })
  await t.test('el tiempo agotado y la finalización dejan de invitar a esperar',async()=>{
   await actualizar(id,'activo')
@@ -75,7 +75,7 @@ test('sesiones normales con minutos y preguntas propios; eliminación sin puntua
   sesion=await crear(6,3)
   const s=(await db.query('SELECT * FROM public.sesiones WHERE id=$1',[sesion])).rows[0]
   assert.equal(s.tiempo_limite,3);assert.equal(s.cantidad_preguntas,6);assert.deepEqual(s.distribucion,{multiple:4,abierta:1,contexto:1})
-  await asRole(db,'authenticated',adminClaims,()=>db.query('UPDATE public.etapas SET tiempo_limite=60,cantidad_preguntas=45,reglas=reglas||jsonb_build_object(\'distribucion\',app_private.distribucion_examen(45)),estado=\'activa\' WHERE id=$1',[e.id]))
+  await asRole(db,'authenticated',adminClaims,()=>db.query('UPDATE public.etapas SET tiempo_limite=60,cantidad_preguntas=45,reglas=reglas||jsonb_build_object(\'distribucion\',app_private.distribucion_examen(45)) WHERE id=$1',[e.id]))
   assert.equal((await db.query('SELECT cantidad_preguntas FROM public.sesiones WHERE id=$1',[sesion])).rows[0].cantidad_preguntas,6)
   for(const [n,min] of [[0,3],[201,3],[6,0],[6,241],[null,3]])await assert.rejects(crear(n,min,['Inválido']))
   await assert.rejects(rpc('admin_sesion_crear',[e.id,f.sociedad,'[{"nombre":"No autorizado"}]',3,6],users[2]),{code:'42501'})
@@ -133,6 +133,56 @@ test('sesiones normales con minutos y preguntas propios; eliminación sin puntua
   assert.equal(archivo.datos.sesiones.length,0);assert.equal(archivo.datos.participantes.length,0);assert.equal(archivo.datos.respuestas.length,0);assert.equal(archivo.datos.incidencias_examen.length,0)
   const h=(await db.query("SELECT id FROM public.etapas WHERE historica")).rows[0].id
   await assert.rejects(rpc('admin_sesion_eliminar',[sesion,h,'ELIMINAR']),{code:'42501'})
+ })
+ }finally{await db.close()}
+})
+
+test('banco por sesión: validación atómica, tardanza, contador 20 y recuperación sin activar la etapa',async t=>{
+ const {db,e,rpc,crear,actualizar,users}=await fixture();let id,a,b,huella
+ const admin=fn=>asRole(db,'authenticated',adminClaims,fn)
+ const copia=async sid=>(await db.query('SELECT md5(jsonb_agg(to_jsonb(q) ORDER BY pregunta_id)::text) h FROM app_private.banco_sesion q WHERE sesion_id=$1',[sid])).rows[0].h
+ try{
+ await t.test('un banco insuficiente impide iniciar y revierte tanto el reloj como la copia',async()=>{
+  const corta=await crear(200,2,['Banco insuficiente'])
+  await assert.rejects(actualizar(corta,'activo'),/Faltan preguntas.*esta sesión/)
+  const s=(await db.query('SELECT estado,iniciado_at FROM public.sesiones WHERE id=$1',[corta])).rows[0]
+  assert.deepEqual(s,{estado:'esperando',iniciado_at:null});assert.equal(await copia(corta),null)
+  await rpc('admin_sesion_eliminar',[corta,e.id,'ELIMINAR'])
+ })
+ await t.test('crear, registrar, autorizar e iniciar funciona con la etapa en borrador',async()=>{
+  id=await crear(25,2);const sala=await rpc('examen_sala',[id],users[0])
+  assert.equal(sala.disponible,true);a=await rpc('examen_registrar',[id,sala.participantes[0].id],users[0])
+  await rpc('admin_examen_autorizar',[a.intento.id,'Identidad verificada en la sala'])
+  await actualizar(id,'activo');a=await rpc('examen_contacto',[a.intento.id],users[0]);assert.equal(a.pregunta.posicion,1);assert.equal(a.intento.total,25)
+  assert.equal((await db.query('SELECT estado FROM public.etapas WHERE id=$1',[e.id])).rows[0].estado,'borrador');huella=await copia(id);assert.ok(huella)
+  await assert.rejects(asRole(db,'authenticated',{sub:users[0]},()=>db.query('SELECT * FROM app_private.banco_sesion')),{code:'42501'})
+  await assert.rejects(admin(()=>db.query('SELECT * FROM app_private.banco_sesion')),{code:'42501'})
+  await assert.rejects(db.query('UPDATE app_private.banco_sesion SET texto=texto WHERE sesion_id=$1',[id]),/inmutable/)
+ })
+ await t.test('editar el banco no altera esta sesión; un joven tardío recibe la misma copia y cierre',async()=>{
+  await admin(()=>db.query("UPDATE public.preguntas SET texto=texto||' [revisada]',respuesta_correcta='Nueva referencia' WHERE etapa_id=$1 AND tipo<>'multiple'",[e.id]))
+  const nuevo=await rpc('admin_examen_agregar',[id,'Participante tardío'])
+  b=await rpc('examen_registrar',[id,nuevo.participante_id],users[1]);await rpc('admin_examen_autorizar',[b.intento.id,'Identidad del participante tardío verificada'])
+  b=await rpc('examen_contacto',[b.intento.id],users[1]);assert.equal(b.intento.vence_at,a.intento.vence_at);assert.equal(await copia(id),huella)
+  assert.equal((await db.query("SELECT count(*)::int n FROM public.intento_preguntas WHERE intento_id=$1 AND texto LIKE '%[revisada]'",[b.intento.id])).rows[0].n,0)
+  const diferencias=(await db.query('SELECT count(*)::int n FROM public.intento_preguntas q JOIN app_private.banco_sesion z ON z.sesion_id=$1 AND z.pregunta_id=q.pregunta_id WHERE q.intento_id=$2 AND (q.texto,q.respuesta_correcta,q.rubrica,q.puntaje) IS DISTINCT FROM (z.texto,z.respuesta_correcta,z.rubrica,z.puntaje)',[id,b.intento.id])).rows[0].n
+  assert.equal(diferencias,0)
+ })
+ await t.test('una alerta, recarga y traslado autorizado conservan la pregunta 20 y el borrador',async()=>{
+  for(let k=1;k<20;k++)a=await rpc('examen_responder',[a.intento.id,a.pregunta.id,'Correcta',randomUUID()],users[0])
+  assert.equal(a.pregunta.posicion,20)
+  a=await rpc('examen_borrador',[a.intento.id,a.pregunta.id,'Borrador de la pregunta veinte',a.pregunta.revision],users[0])
+  await rpc('examen_eventos',[a.intento.id,JSON.stringify([{id:randomUUID(),tipo:'cambio_pestana'}])],users[0])
+  const recargado=await rpc('examen_estado',[a.intento.id],users[0]);assert.equal(recargado.pregunta.posicion,20);assert.equal(recargado.pregunta.borrador,'Borrador de la pregunta veinte')
+  const codigo=await rpc('admin_examen_recuperacion',[a.intento.id])
+  const traslado=await rpc('examen_recuperar',[id,codigo.codigo],users[2]);assert.equal(traslado.pregunta.posicion,20);assert.equal(traslado.pregunta.borrador,'Borrador de la pregunta veinte');assert.equal(traslado.intento.vence_at,a.intento.vence_at)
+  await assert.rejects(rpc('examen_estado',[a.intento.id],users[0]),{code:'42501'})
+ })
+ await t.test('otra sesión puede usar duración y cantidad nuevas y recibe la versión revisada',async()=>{
+  const nueva=await crear(3,1,['Sesión independiente']);await actualizar(nueva,'activo')
+  const cantidad=(await db.query("SELECT count(*)::int n FROM app_private.banco_sesion WHERE sesion_id=$1 AND texto LIKE '%[revisada]'",[nueva])).rows[0].n
+  assert.ok(cantidad>0);assert.equal(await copia(id),huella)
+  assert.equal((await db.query('SELECT tiempo_limite FROM public.sesiones WHERE id=$1',[id])).rows[0].tiempo_limite,2)
  })
  }finally{await db.close()}
 })

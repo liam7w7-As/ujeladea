@@ -23,7 +23,7 @@ function EditorEtapa({ etapa, siguienteNumero, anio, onClose, onSaved }) {
       const payload = validarEtapa(form)
       if (esModeloNuevo(etapa)) payload.reglas = { ...etapa.reglas, distribucion: distribucionExamen(payload.cantidad_preguntas) }
       const consulta = etapa
-        ? supabase.from('etapas').update(payload).eq('id', etapa.id).eq('estado', 'borrador')
+        ? supabase.from('etapas').update(payload).eq('id', etapa.id).eq('estado', etapa.estado)
         : supabase.from('etapas').insert({ ...payload, codigo: codigoEtapa(payload), estado: 'borrador', reglas: { version: 2 } })
       const { error } = await consulta.select('id').single()
       if (error) throw error
@@ -33,7 +33,7 @@ function EditorEtapa({ etapa, siguienteNumero, anio, onClose, onSaved }) {
   }
   return <section className="card etapa-editor" aria-labelledby="editor-etapa-titulo">
     <div className="etapa-heading"><div><p className="eyebrow">Configuración</p><h2 id="editor-etapa-titulo">{etapa ? 'Editar preparación' : 'Crear nueva etapa'}</h2></div><button className="btn btn-secondary icon-button" onClick={onClose} disabled={guardando} aria-label="Cerrar formulario"><X size={19} /></button></div>
-    <p className="etapa-help">La etapa se guarda en preparación. El banco y las sesiones se mantienen separados de las demás etapas.</p>
+    <p className="etapa-help">Estos son valores predeterminados. Al crear cada sesión puedes elegir su duración y cantidad de preguntas.</p>
     {error && <p className="alert alert-error" role="alert">{error}</p>}
     <form onSubmit={guardar}>
       <div className="etapa-form-grid">
@@ -53,18 +53,17 @@ export default function Etapas() {
  const [editor,setEditor]=useState(null),[confirmacion,setConfirmacion]=useState(null),[ocupado,setOcupado]=useState(false),[aviso,setAviso]=useState(''),[fallo,setFallo]=useState(''),[banco,setBanco]=useState({})
  useEffect(()=>{let vigente=true;if(!etapa)return;Promise.all(['multiple','abierta','contexto'].map(async tipo=>{const {count,error}=await supabase.from('preguntas').select('id',{count:'exact',head:true}).eq('etapa_id',etapa.id).eq('activa',true).eq('tipo',tipo);return[tipo,error?null:count]})).then(v=>{if(vigente)setBanco(Object.fromEntries(v))});return()=>{vigente=false}},[etapa])
  const distribucion={...DISTRIBUCION,...etapa?.reglas?.distribucion}
- const suficiente=Object.entries(distribucion).every(([t,n])=>banco[t]>=n)
- async function cambiar(){setOcupado(true);setFallo('');try{const estado=etapa.estado==='borrador'?'activa':'cerrada';const {error}=await supabase.from('etapas').update({estado}).eq('id',etapa.id).eq('estado',etapa.estado).select('id').single();if(error)throw error;setConfirmacion(null);await recargar();setAviso(estado==='activa'?'Efesios está listo para iniciar sesiones.':'La etapa se cerró y sus resultados se conservaron.')}catch(e){setFallo(mensajeErrorEtapas(e))}finally{setOcupado(false)}}
+ async function cambiar(){setOcupado(true);setFallo('');try{const estado='cerrada';const {error}=await supabase.from('etapas').update({estado}).eq('id',etapa.id).eq('estado',etapa.estado).select('id').single();if(error)throw error;setConfirmacion(null);await recargar();setAviso('La etapa se cerró y sus resultados se conservaron.')}catch(e){setFallo(mensajeErrorEtapas(e))}finally{setOcupado(false)}}
  return <><NavAdmin/><main className="admin-content inicio-efesios"><div className="etapa-heading"><div><p className="eyebrow">Olimpiadas Bíblicas · UJELADEA</p><h1>Segunda etapa · Efesios</h1><p className="etapa-help">Prepara la evaluación y acompaña a los jóvenes.</p></div></div>
  {error&&<p role="alert" className="alert alert-error">{error}<button onClick={recargar} className="btn btn-secondary">Reintentar</button></p>}
  {aviso&&<p role="status" className="alert alert-success">{aviso}</p>}
- {cargando?<p role="status">Cargando preparación…</p>:etapa&&<section className="card efesios-acceso"><div><span className={'etapa-status '+etapa.estado}>{ESTADOS_ETAPA[etapa.estado]}</span><h2>Efesios</h2><p>{etapa.cantidad_preguntas} preguntas · {etapa.tiempo_limite} minutos · nota sobre 100</p></div><button className="btn btn-primary" onClick={()=>navigate('/admin/dashboard')}>Ingresar a Efesios<ArrowRight size={18}/></button></section>}
+ {cargando?<p role="status">Cargando preparación…</p>:etapa&&<section className="card efesios-acceso"><div><span className={'etapa-status '+etapa.estado}>{esModeloNuevo(etapa)&&etapa.estado!=='cerrada'?'Sesiones disponibles':ESTADOS_ETAPA[etapa.estado]}</span><h2>Efesios</h2><p>Por defecto: {etapa.cantidad_preguntas} preguntas · {etapa.tiempo_limite} minutos · nota sobre 100</p></div><button className="btn btn-primary" onClick={()=>navigate('/admin/dashboard')}>Ingresar a Efesios<ArrowRight size={18}/></button></section>}
  {etapa&&<section className="preparacion-resumen" aria-label="Preparación del banco">{Object.entries(distribucion).map(([tipo,n])=><div key={tipo}><strong>{banco[tipo]??'—'} / {n}</strong><span>{tipo==='multiple'?'Opción múltiple':tipo==='abierta'?'Respuesta abierta':'Contexto bíblico'}</span><small>{etapa.reglas?.puntos?.[tipo]??'—'} puntos por pregunta</small></div>)}</section>}
- {etapa?.estado==='borrador'&&<div className="etapa-actions"><button className="btn btn-secondary" onClick={()=>setEditor(etapa)}><Settings2 size={16}/>Configurar duración</button><button className="btn btn-secondary" disabled={!suficiente} onClick={()=>setConfirmacion(true)}>Activar evaluación</button><p className="etapa-help">{suficiente?'El servidor comprobará también los puntajes y las rúbricas.':'Completa el banco revisado de cada tipo antes de activar.'}</p></div>}
- {etapa?.estado==='activa'&&<details className="acciones-etapa"><summary>Administrar cierre de la etapa</summary><button className="btn btn-secondary" onClick={()=>setConfirmacion(true)}>Cerrar etapa</button></details>}
+ {etapa&&etapa.estado!=='cerrada'&&<div className="etapa-actions"><button className="btn btn-secondary" onClick={()=>setEditor(etapa)}><Settings2 size={16}/>Configurar duración</button><p className="etapa-help">Crea la sesión, comparte el QR y registra a los jóvenes. Las preguntas se validan al pulsar Iniciar examen en cada sala.</p></div>}
+ {etapa&&etapa.estado!=='cerrada'&&<details className="acciones-etapa"><summary>Administrar cierre de la etapa</summary><button className="btn btn-secondary" onClick={()=>setConfirmacion(true)}>Cerrar etapa</button></details>}
  {editor&&<EditorEtapa etapa={editor} onClose={()=>setEditor(null)} onSaved={async()=>{setEditor(null);await recargar()}}/>}
  <section className="historial-bloqueado" aria-label="Etapas archivadas">{etapas.filter(e=>e.historica).map(e=><div key={e.id}><LockKeyhole size={18}/><span>{e.libro} · {e.anio}</span><small>Archivado · acceso bloqueado</small></div>)}</section>
- {confirmacion&&<DialogoEtapa bloqueado={ocupado} onClose={()=>setConfirmacion(null)}><h2 id="confirmar-etapa-titulo">{etapa.estado==='borrador'?'Activar Efesios':'Cerrar Efesios'}</h2><p>La configuración y el banco quedan fijos al activar. El cierre conserva el archivo y requiere todas las notas resueltas.</p>{fallo&&<p role="alert" className="alert alert-error">{fallo}</p>}<div className="etapa-actions"><button className="btn btn-secondary" onClick={()=>setConfirmacion(null)} disabled={ocupado}>Cancelar</button><button className="btn btn-primary" onClick={cambiar} disabled={ocupado}>{ocupado?'Procesando…':'Confirmar'}</button></div></DialogoEtapa>}
+ {confirmacion&&<DialogoEtapa bloqueado={ocupado} onClose={()=>setConfirmacion(null)}><h2 id="confirmar-etapa-titulo">Cerrar Efesios</h2><p>El cierre impide nuevas sesiones y conserva los resultados. Requiere finalizar todas las sesiones y resolver las notas pendientes.</p>{fallo&&<p role="alert" className="alert alert-error">{fallo}</p>}<div className="etapa-actions"><button className="btn btn-secondary" onClick={()=>setConfirmacion(null)} disabled={ocupado}>Cancelar</button><button className="btn btn-primary" onClick={cambiar} disabled={ocupado}>{ocupado?'Procesando…':'Confirmar'}</button></div></DialogoEtapa>}
  <Link className="etapa-catalog-link" to="/admin/sociedades">Administrar sociedades</Link>
  </main></>
 }

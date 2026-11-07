@@ -190,7 +190,7 @@ export default function FormPregunta() {
     }
   }
 
-  if(Number(etapa.reglas?.version)>=3 && etapa.estado!=='borrador')return <main className="admin-content"><h1>Banco protegido</h1><p>El banco y las rúbricas están fijos durante la evaluación.</p><button className="btn btn-secondary" onClick={()=>navigate('/admin/preguntas')}>Volver al banco</button></main>
+  if(Number(etapa.reglas?.version)>=3 && etapa.estado==='cerrada')return <main className="admin-content"><h1>Banco protegido</h1><p>El banco y las rúbricas están fijos durante la evaluación.</p><button className="btn btn-secondary" onClick={()=>navigate('/admin/preguntas')}>Volver al banco</button></main>
   return (
     <div className="page-wrapper" style={{ padding: 'var(--space-md)' }}>
       <div className="page-content animate-in" style={{ maxWidth: '700px', width: '100%' }}>
