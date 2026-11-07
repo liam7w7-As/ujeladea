@@ -32,6 +32,8 @@ async function como(claims, fn, headers={}) {
   })
 }
 const rpcs=new Set(['examen_sala','examen_registrar','examen_estado','examen_borrador','examen_responder','examen_finalizar','examen_eventos','examen_recuperar','admin_examen_sala','admin_examen_crear_sesion','admin_examen_cerrar_vencida','admin_examen_contexto','admin_examen_calificar','admin_examen_recuperacion','examen_contacto','admin_examen_agregar','admin_examen_autorizar','admin_examen_calificar_rubrica','admin_examen_justificar','admin_premiacion_resumen','admin_premiacion_validar_pdf','admin_premiacion_vincular'])
+rpcs.add('examen_supervisar')
+rpcs.add('admin_banco_importacion')
 rpcs.add('examen_ayuda')
 rpcs.add('admin_examen_atender_ayuda')
 for (const nombre of ['admin_revision_resumen','admin_revision_siguiente','admin_revision_borrador','admin_revision_guardar']) rpcs.add(nombre)
@@ -76,7 +78,7 @@ async function avanzar(intento,claims,cantidad) {
   let estado=await rpc('examen_estado',{p_intento:intento},claims)
   for(let n=0;n<cantidad&&estado.pregunta;n++) {
     const q=estado.pregunta
-    estado=await rpc('examen_responder',{p_intento:intento,p_pregunta:q.id,p_texto:q.tipo==='multiple'?q.opciones[0]:'Respuesta ficticia para revisar la experiencia del examen.',p_solicitud:randomUUID()},claims)
+    estado=await rpc('examen_responder',{p_intento:intento,p_pregunta:q.id,p_texto:q.tipo==='multiple'?'Opción de muestra A':'Respuesta ficticia para revisar la experiencia del examen.',p_solicitud:randomUUID()},claims)
   }
   return estado
 }

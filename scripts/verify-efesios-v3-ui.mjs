@@ -15,6 +15,8 @@ const soc=await api('/rest/v1/sociedades',{nombre:'Revisión V3 '+randomUUID().s
 const sesion=(await api('/rest/v1/rpc/admin_examen_crear_sesion',{p_etapa:meta.etapa,p_sociedad:soc[0].id,p_participantes:[{nombre:'Participante de prueba uno'},{nombre:'Participante de prueba dos'}]})).sesion_id
 const browser=await chromium.launch({channel:'msedge',headless:true})
 const contexts=await Promise.all([1,2,3,4].map(()=>browser.newContext()))
+// Cada contexto representa un dispositivo independiente; el foco real se prueba por separado.
+for(const c of contexts)await c.addInitScript(()=>{Object.defineProperty(globalThis.Document.prototype,'hasFocus',{value:()=>true});Object.defineProperty(globalThis.Document.prototype,'fullscreenEnabled',{get:()=>false})})
 for(const c of contexts)await c.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort())
 const [panel,joven,tardio,traslado]=await Promise.all(contexts.map(c=>c.newPage()))
 const errores=[],checks=[]

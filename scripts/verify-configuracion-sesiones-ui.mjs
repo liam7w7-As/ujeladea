@@ -13,6 +13,8 @@ const nombreSoc='Sesión normal '+randomUUID().slice(0,7),soc=(await api('/rest/
 const nombrePC='Dispositivo PC '+nombreSoc.slice(-7),nombreCelular='Dispositivo celular '+nombreSoc.slice(-7)
 const browser=await chromium.launch({channel:'msedge',headless:true})
 const contexts=await Promise.all([1,2,3].map((_,i)=>browser.newContext({viewport:i===2?{width:390,height:844}:{width:1440,height:1000}})))
+// Cada contexto representa un dispositivo independiente; el foco real se prueba por separado.
+for(const c of contexts)await c.addInitScript(()=>{Object.defineProperty(globalThis.Document.prototype,'hasFocus',{value:()=>true});Object.defineProperty(globalThis.Document.prototype,'fullscreenEnabled',{get:()=>false})})
 for(const c of contexts)await c.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort())
 const [panel,pc,celular]=await Promise.all(contexts.map(c=>c.newPage())),errores=[],checks=[]
 for(const p of [panel,pc,celular])p.on('pageerror',e=>errores.push(e.message))

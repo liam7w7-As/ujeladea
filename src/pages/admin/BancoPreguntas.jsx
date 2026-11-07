@@ -14,7 +14,8 @@ export default function BancoPreguntas() {
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [tipo, setTipo] = useState('todas')
-  const [filtroEstado, setFiltroEstado] = useState('todas')
+  const [filtroEstado, setFiltroEstado] = useState('activas')
+  const [importacion, setImportacion] = useState(null)
   const [ocupada, setOcupada] = useState('')
   useEffect(() => {
     let vigente = true
@@ -22,6 +23,7 @@ export default function BancoPreguntas() {
     promesa.then(data => { if (vigente) setPreguntas(data) }).catch(err => { if (vigente) setError(err.message) })
     return () => { vigente = false }
   }, [etapa, archivo, soloLectura, cerrada])
+  useEffect(() => { let vigente = true; if (!cerrada) void supabase.rpc('admin_banco_importacion', { p_etapa: etapa.id }).then(({data,error}) => { if (vigente && !error) setImportacion(data) }); return () => { vigente = false } }, [etapa.id, cerrada])
   const filtradas = (preguntas || []).filter(p => p.texto.toLowerCase().includes(busqueda.toLowerCase()) && (tipo === 'todas' || p.tipo === tipo) && (filtroEstado === 'todas' || Boolean(p.activa) === (filtroEstado === 'activas')))
   async function cambiarActiva(pregunta) {
     if (soloLectura || ocupada) return
@@ -48,6 +50,7 @@ export default function BancoPreguntas() {
   return <><NavAdmin /><main className="admin-content">
     <EtapaAviso />
     <div className="etapa-heading"><div><p className="eyebrow">{etapa.libro}</p><h1>Banco de preguntas</h1><p className="etapa-help">{preguntas?.filter(p => p.activa).length || 0} activas · {preguntas?.length || 0} en total</p></div><div className="etapa-actions"><button className="btn btn-secondary" onClick={exportar} disabled={!filtradas.length}><Download size={17} />Exportar PDF</button>{!soloLectura && <Link className="btn btn-primary" to="/admin/preguntas/nueva"><Plus size={17} />Nueva pregunta</Link>}</div></div>
+    {importacion && <section className="card banco-preparacion" aria-label="Origen del banco oficial"><h2>Banco oficial de pastores y Misiones</h2><p>{importacion.total} preguntas: {importacion.por_tipo?.multiple} de selección, {importacion.por_tipo?.abierta} abiertas y {importacion.por_tipo?.contexto} de contexto.</p><p className="etapa-help">Fuente: {importacion.fuente}. Las sesiones ya iniciadas conservan su copia anterior.</p><details><summary>Ver adaptaciones y correcciones</summary><p>Convertidas a selección: {importacion.conversiones_seleccion?.join(', ')}.</p><p>Contexto adaptado o consigna precisada: {importacion.adaptaciones_contexto?.join(', ')}.</p>{importacion.correcciones?.map(c=><p key={c.numero}>Pregunta {c.numero}: {c.detalle}</p>)}</details></section>}
     {!soloLectura && <section className="card banco-preparacion" aria-label="Preparación del banco pastoral">
       <h2>Base para las preguntas de {etapa.libro}</h2>
       <p>Incorpora aquí las preguntas revisadas por los pastores. Cada una necesita un enunciado claro, su respuesta de referencia y un puntaje.</p>

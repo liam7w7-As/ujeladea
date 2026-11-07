@@ -63,11 +63,12 @@ export default function Examen() {
   const { sesionId } = useParams()
   const estado = useIntento(sesionId)
   const [restante, setRestante] = useState(null)
-  const [overlay, setOverlay] = useState(false)
+  const [overlay, setOverlay] = useState(() => Boolean(document.fullscreenEnabled && !document.fullscreenElement))
+  const [pantallaPreparada, setPantallaPreparada] = useState(() => Boolean(document.fullscreenElement) || !document.fullscreenEnabled)
   const [aviso, setAviso] = useState('')
   const menuAyuda = useRef(null)
   const datos = estado.datos
-  const { recargar } = estado
+  const { recargar, aplicar } = estado
   const vence = datos?.intento.vence_at
   const servidor = datos?.servidor_at
   useEffect(() => {
@@ -94,17 +95,19 @@ export default function Examen() {
   const estadoIntento = datos?.intento.estado
   useEffect(() => {
     if (!intentoId || estadoIntento !== 'en_curso' || datos?.acceso?.pendiente) return
-    const seguridad = new SeguridadExamen({ intento: intentoId, reportar: apiExamen.eventos, onAdvertencia: tipo => {
+    let vigente = true
+    const seguridad = new SeguridadExamen({ intento: intentoId, reportar: apiExamen.eventos, supervisar: async e => { const d = await apiExamen.supervisar(intentoId, e); if (vigente) aplicar(d) }, onAdvertencia: tipo => {
       if (tipo === 'salio_fullscreen') setOverlay(true)
-      else setAviso('El examen dejó de estar visible. Tu progreso confirmado se conserva. Continúa aquí y avisa al moderador si necesitas ayuda.')
+      else setAviso(tipo === 'vista_reducida' ? 'La vista del examen se redujo. Vuelve a la vista completa; si ocurre por un problema del dispositivo, avisa al moderador. Esta señal requiere interpretación.' : 'El examen perdió visibilidad o foco. Regresa a esta pantalla. Si la interrupción se prolonga, necesitarás autorización del moderador. Tu progreso se conserva.')
     } })
     seguridad.iniciar()
-    return () => seguridad.destruir()
-  }, [intentoId, estadoIntento, datos?.acceso?.pendiente])
+    return () => { vigente = false; seguridad.destruir() }
+  }, [intentoId, estadoIntento, datos?.acceso?.pendiente, aplicar])
   async function pantallaCompleta() {
     setOverlay(false)
+    setPantallaPreparada(true)
     try { if (document.fullscreenEnabled && !document.fullscreenElement) await document.documentElement.requestFullscreen() }
-    catch { setAviso('No pudimos activar la pantalla completa. Conserva esta pantalla abierta y avisa al moderador si necesitas ayuda.') }
+    catch { setAviso('No pudimos activar la pantalla completa. Conserva esta pantalla abierta y avisa al moderador.'); void apiExamen.supervisar(intentoId, { episodio: crypto.randomUUID(), fase: 'fin', senales: ['pantalla_completa_no_disponible'], duracion: 0 }).catch(() => {}) }
   }
   if (estado.sinIntento) return <Navigate to={'/examen/' + sesionId} replace />
   if (!datos) return <EstadoParticipante {...estado} />
@@ -128,6 +131,6 @@ export default function Examen() {
       {datos.ayuda && !datos.ayuda.atendida_at && <p className="joven-ayuda-pendiente" role="status">Tu solicitud de ayuda está registrada. Conserva la pantalla abierta y avisa al moderador.</p>}
       <Pregunta key={datos.pregunta.id} pregunta={datos.pregunta} intento={datos.intento} aplicar={estado.aplicar} />
     </div>
-    <AdvertenciaOverlay isOpen={overlay} onContinuar={pantallaCompleta} />
+    <AdvertenciaOverlay inicial={!pantallaPreparada} isOpen={overlay} onContinuar={pantallaCompleta} />
   </main>
 }

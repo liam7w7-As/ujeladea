@@ -45,6 +45,7 @@ function sesionAuth(admin=false) {
  user:{id:claims.sub,aud:'authenticated',role:'authenticated',is_anonymous:!admin,email:admin?'admin@prueba.local':undefined,app_metadata:claims.app_metadata,created_at:new Date().toISOString()}}
 }
 async function simular(context) {
+ await context.addInitScript(()=>{Object.defineProperty(globalThis.Document.prototype,'hasFocus',{value:()=>true});Object.defineProperty(globalThis.Document.prototype,'fullscreenEnabled',{get:()=>false})})
  await context.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort())
  await context.route('http://127.0.0.1:54329/**',async route=>{
   const req=route.request(), url=new URL(req.url()), method=req.method()

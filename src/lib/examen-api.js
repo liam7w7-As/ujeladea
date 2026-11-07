@@ -25,6 +25,7 @@ export function crearApiExamen(client) {
     return data
   }
   return {
+    supervisar: (intento, e) => llamar('examen_supervisar', { p_intento: intento, p_episodio: e.episodio, p_fase: e.fase, p_senales: e.senales, p_observadas: e.observadas || e.senales, p_duracion: Math.min(86400000, Math.max(0, Math.round(e.duracion))), p_ausencia: Math.min(86400000, Math.max(0, Math.round(e.ausencia || 0))) }),
     ayuda: (intento, motivo) => llamar('examen_ayuda', { p_intento: intento, p_motivo: motivo }),
     contacto: (intento, accion = 'pulso', visible = true, motivo = '') => llamar('examen_contacto', { p_intento: intento, p_accion: accion, p_visible: visible, p_motivo: motivo }),
     sala: sesion => llamar('examen_sala', { p_sesion: sesion }),

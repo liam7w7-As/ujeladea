@@ -224,7 +224,8 @@ test('las RPC públicas no son SECURITY DEFINER y los ayudantes internos no se p
   const f=await fixture(1)
   try{
     const funciones=(await f.db.query("SELECT p.proname,p.prosecdef FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND (p.proname LIKE 'examen_%' OR p.proname LIKE 'admin_examen_%')")).rows
-    assert.equal(funciones.length,21)
+    assert.equal(funciones.length,22)
+    assert.ok(funciones.some(p=>p.proname==='examen_supervisar'))
     assert.ok(funciones.every(p=>!p.prosecdef))
     await asRole(f.db,'authenticated',{sub:f.usuarios[0]},async()=>{
       for(const nombre of ['examen_uid()','examen_cerrar(uuid,text)','examen_iniciar(uuid)','examen_payload(uuid)','examen_bloquear(uuid)']){

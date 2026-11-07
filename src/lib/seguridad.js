@@ -1,6 +1,9 @@
+import { SupervisionVista } from './supervision-vista.js'
 // Señales de supervisión; no bloquean el guardado ni cambian la pregunta actual.
 export class SeguridadExamen {
-  constructor({ intento, reportar, onAdvertencia, storage = globalThis.localStorage }) {
+  constructor({ intento, reportar, onAdvertencia, supervisar, storage }) {
+    if (storage === undefined) { try { storage = globalThis.localStorage } catch { storage = null } }
+    this.vista = supervisar ? new SupervisionVista({ reportar: supervisar, advertir: onAdvertencia, intento, storage }) : null
     this.intento = intento
     this.reportar = reportar
     this.onAdvertencia = onAdvertencia
@@ -21,13 +24,14 @@ export class SeguridadExamen {
   }
   iniciar() {
     this.activo = true
+    this.vista?.iniciar()
     document.addEventListener('visibilitychange', this.visibilidad)
     document.addEventListener('fullscreenchange', this.fullscreen)
     document.addEventListener('contextmenu', this.contexto)
     document.addEventListener('paste', this.pegar)
     document.addEventListener('keydown', this.teclas)
     window.addEventListener('online', this.online)
-    this.timer = setInterval(() => { void this.enviar() }, 3000)
+    this.timer = setInterval(() => { void this.enviar(); void this.vista?.enviar() }, 3000)
   }
   persistir() { try { this.storage?.setItem(this.key, JSON.stringify(this.cola)) } catch { /* No interrumpe el examen. */ } }
   registrar(tipo, avisar = false) {
@@ -53,6 +57,7 @@ export class SeguridadExamen {
   }
   destruir() {
     this.activo = false
+    this.vista?.destruir()
     clearInterval(this.timer)
     document.removeEventListener('visibilitychange', this.visibilidad)
     document.removeEventListener('fullscreenchange', this.fullscreen)

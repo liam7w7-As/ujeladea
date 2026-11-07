@@ -171,11 +171,12 @@ test('banco por sesión: validación atómica, tardanza, contador 20 y recuperac
  await t.test('una alerta, recarga y traslado autorizado conservan la pregunta 20 y el borrador',async()=>{
   for(let k=1;k<20;k++)a=await rpc('examen_responder',[a.intento.id,a.pregunta.id,'Correcta',randomUUID()],users[0])
   assert.equal(a.pregunta.posicion,20)
-  a=await rpc('examen_borrador',[a.intento.id,a.pregunta.id,'Borrador de la pregunta veinte',a.pregunta.revision],users[0])
+  const texto20=a.pregunta.tipo==='multiple'?a.pregunta.opciones[0]:'Borrador de la pregunta veinte'
+  a=await rpc('examen_borrador',[a.intento.id,a.pregunta.id,texto20,a.pregunta.revision],users[0])
   await rpc('examen_eventos',[a.intento.id,JSON.stringify([{id:randomUUID(),tipo:'cambio_pestana'}])],users[0])
-  const recargado=await rpc('examen_estado',[a.intento.id],users[0]);assert.equal(recargado.pregunta.posicion,20);assert.equal(recargado.pregunta.borrador,'Borrador de la pregunta veinte')
+  const recargado=await rpc('examen_estado',[a.intento.id],users[0]);assert.equal(recargado.pregunta.posicion,20);assert.equal(recargado.pregunta.borrador,texto20)
   const codigo=await rpc('admin_examen_recuperacion',[a.intento.id])
-  const traslado=await rpc('examen_recuperar',[id,codigo.codigo],users[2]);assert.equal(traslado.pregunta.posicion,20);assert.equal(traslado.pregunta.borrador,'Borrador de la pregunta veinte');assert.equal(traslado.intento.vence_at,a.intento.vence_at)
+  const traslado=await rpc('examen_recuperar',[id,codigo.codigo],users[2]);assert.equal(traslado.pregunta.posicion,20);assert.equal(traslado.pregunta.borrador,texto20);assert.equal(traslado.intento.vence_at,a.intento.vence_at)
   await assert.rejects(rpc('examen_estado',[a.intento.id],users[0]),{code:'42501'})
  })
  await t.test('otra sesión puede usar duración y cantidad nuevas y recibe la versión revisada',async()=>{

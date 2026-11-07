@@ -18,6 +18,6 @@ export default function InstruccionesExamen({ total, etapa, minutos, compacto = 
       <p>Las preguntas aparecerán en un orden propio para cada participante.</p>
     </div>}
     <ol>{pasos.map(({ icono: Icono, titulo, texto }) => <li key={titulo}><Icono size={20} aria-hidden="true" /><div><h3>{titulo}</h3><p>{texto}</p></div></li>)}</ol>
-    <p className="joven-instrucciones-nota">El encargado inicia el examen para toda la sala. Mantén el examen visible y avísale si tienes algún problema.</p>
+    <p className="joven-instrucciones-nota">El encargado inicia el examen para toda la sala. Usa el examen como única vista de trabajo. Evita otras aplicaciones, ventanas flotantes o pantalla dividida. Si tu navegador no admite pantalla completa o surge una interrupción, avisa al moderador.</p>
   </section>
 }
