@@ -284,7 +284,7 @@ export default function CrearSesion() {
               <div className="etapa-form-grid"><label className="form-label">Duración en minutos<input className="form-input" type="number" min={1} max={240} step={1} value={minutos} onChange={e => setMinutos(e.target.value)}/></label><label className="form-label">Preguntas por joven<input className="form-input" type="number" min={1} max={200} step={1} value={preguntas} onChange={e => setPreguntas(e.target.value)}/></label></div>
               {distribucion && <p className="etapa-help">{configuracion.cant_preguntas} preguntas: {distribucion.multiple} múltiples · {distribucion.abierta} abiertas · {distribucion.contexto} de contexto.</p>}
               <p className="etapa-help">Estos valores se aplican solo a esta sesión y quedan fijos al crearla. Con 3 preguntas o más se incluyen los tres tipos.</p>
-              {etapa.estado==='borrador'&&<p className="alert alert-warning">La etapa está en preparación. Para que los jóvenes puedan entrar, <Link to="/admin/etapas">activa la evaluación en Etapas</Link>. El reloj comienza al iniciar el examen desde la sala de control.</p>}
+              {etapa.estado==='borrador'&&<p className="alert alert-warning aviso-acceso">La etapa está en preparación. Para que los jóvenes puedan entrar, <Link to="/admin/etapas">activa la evaluación en Etapas</Link>. El reloj comienza al iniciar el examen desde la sala de control.</p>}
 
               <div className="divider" />
 

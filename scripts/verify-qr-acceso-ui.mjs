@@ -52,6 +52,7 @@ try{
  await panel.goto(base+'/admin/sesion/'+meta.espera+'/espera',{waitUntil:'networkidle'})
  await expect(panel.getByRole('region',{name:'Registro pendiente de habilitar'})).toBeVisible();await expect(panel.getByRole('link',{name:'Ir a activar la evaluación'})).toHaveAttribute('href','/admin/etapas')
  await expect(panel.getByRole('button',{name:'Iniciar examen',exact:true})).toBeDisabled();ok('el estado actualizado del servidor avisa al moderador y mantiene bloqueado el inicio')
+ await panel.setViewportSize({width:390,height:844});await panel.screenshot({path:dir+'/panel-preparacion.png',fullPage:true})
  const jovenContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
  await jovenContext.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort())
  const joven=await jovenContext.newPage();joven.on('pageerror',e=>errors.push(e.message));let preparado=false,causa='etapa_en_preparacion',consultas=0
