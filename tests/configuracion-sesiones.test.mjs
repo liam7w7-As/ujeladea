@@ -6,6 +6,7 @@ import {distribucionExamen} from '../src/lib/modelo-efesios.js'
 import {rankingEtapa} from '../src/lib/etapas.js'
 import {prepararInformeEtapa} from '../src/lib/informe-etapa.js'
 import {calcularPremiacion} from '../src/lib/premiacion.js'
+import {estadoAccesoSesion} from '../src/lib/estado-acceso-sesion.js'
 async function fixture(){
  const db=await createTestDatabase();await applyMigrations(db)
  const e=(await db.query("SELECT * FROM public.etapas WHERE codigo='2026-02-efesios'")).rows[0]
@@ -22,6 +23,43 @@ async function fixture(){
  const datos=async()=>{const d={};for(const tabla of ['sesiones','sociedades','participantes','preguntas','respuestas','eventos_sesion','intentos','intento_preguntas'])d[tabla]=(await db.query('SELECT * FROM public.'+tabla)).rows;return d}
  return{db,e,sociedad,users,instances,rpc,crear,actualizar,datos}
 }
+
+test('acceso distingue preparación, registro y cierre sin adelantar el reloj ni exponer nombres',async t=>{
+ const {db,e,rpc,crear,actualizar,users}=await fixture()
+ try{
+ const id=await crear(10,2),antes=(await db.query('SELECT to_jsonb(s) s FROM public.sesiones s WHERE id=$1',[id])).rows[0].s
+ await t.test('preparación explica el bloqueo y conserva la sesión intacta',async()=>{
+  const sala=await rpc('examen_sala',[id],users[0])
+  assert.equal(sala.disponible,false);assert.equal(sala.etapa.estado,'borrador');assert.equal(sala.motivo_no_disponible,'etapa_en_preparacion');assert.deepEqual(sala.participantes,[])
+  assert.equal(sala.sesion.iniciado_at,null);assert.equal(sala.sesion.vence_at,null);assert.equal(estadoAccesoSesion(sala).esperar,true)
+  assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'borrador')
+  assert.deepEqual((await db.query('SELECT to_jsonb(s) s FROM public.sesiones s WHERE id=$1',[id])).rows[0].s,antes)
+  const p=(await db.query('SELECT id FROM public.participantes WHERE sesion_id=$1 LIMIT 1',[id])).rows[0].id
+  await assert.rejects(rpc('examen_registrar',[id,p],users[0]),/no está disponible/)
+  await assert.rejects(rpc('admin_examen_sala',[id,e.id],users[0]),{code:'42501'})
+ })
+ await t.test('activar habilita el registro y refresca el panel sin iniciar el examen',async()=>{
+  await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.etapas SET estado='activa' WHERE id=$1",[e.id]))
+  const sala=await rpc('examen_sala',[id],users[0])
+  assert.equal(sala.disponible,true);assert.equal(sala.motivo_no_disponible,null);assert.equal(sala.participantes.length,2);assert.equal(sala.sesion.iniciado_at,null)
+  assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'activa');assert.equal(estadoAccesoSesion(sala).titulo,'Selecciona tu nombre')
+ })
+ await t.test('el tiempo agotado y la finalización dejan de invitar a esperar',async()=>{
+  await actualizar(id,'activo')
+  assert.equal((await rpc('examen_sala',[id],users[0])).disponible,true)
+  // Simula el paso del tiempo solo en la base local; no altera las reglas del servidor.
+  await db.exec('ALTER TABLE public.sesiones DISABLE TRIGGER USER')
+  try{await db.query("UPDATE public.sesiones SET iniciado_at=clock_timestamp()-interval '3 minutes' WHERE id=$1",[id])}finally{await db.exec('ALTER TABLE public.sesiones ENABLE TRIGGER USER')}
+  const vencida=await rpc('examen_sala',[id],users[0]);assert.equal(vencida.disponible,false);assert.equal(vencida.motivo_no_disponible,'tiempo_finalizado');assert.equal(estadoAccesoSesion(vencida).esperar,false);assert.deepEqual(vencida.participantes,[])
+  await actualizar(id,'finalizado')
+  const cerrada=await rpc('examen_sala',[id],users[0]);assert.equal(cerrada.motivo_no_disponible,'sesion_finalizada');assert.equal(estadoAccesoSesion(cerrada).titulo,'Esta sesión ha finalizado')
+ })
+ await t.test('cerrar la etapa conserva el bloqueo e identifica la causa',async()=>{
+  await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.etapas SET estado='cerrada' WHERE id=$1",[e.id]))
+  const sala=await rpc('examen_sala',[id],users[0]);assert.equal(sala.motivo_no_disponible,'etapa_cerrada');assert.equal(estadoAccesoSesion(sala).esperar,false)
+ })
+ }finally{await db.close()}
+})
 
 test('sesiones normales con minutos y preguntas propios; eliminación sin puntuar después',async t=>{
  const f=await fixture(),{db,e,rpc,crear,actualizar,users,instances,datos}=f

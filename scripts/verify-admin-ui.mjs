@@ -183,6 +183,8 @@ try {
  await page.getByRole('button', { name: 'Crear y Generar QR' }).click()
  await page.waitForURL(/\/admin\/sesion\/[^/]+\/espera$/)
  await expect(page.getByRole('heading',{name:'Sala de control'})).toBeVisible()
+ await expect(page.getByRole('dialog',{name:'Acceso a la sesión'})).toBeVisible()
+ await page.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
  comprobar('crea sesión de Efesios con la configuración de su etapa', db.sesiones.some(s => s.etapa_id === E && s.cantidad_preguntas === 45 && s.tiempo_limite === 60))
  comprobar('crea participantes solo en la nueva sesión', db.participantes.some(p => p.nombre === 'Joven de prueba de Efesios' && db.sesiones.some(s => s.id === p.sesion_id && s.etapa_id === E)))
  await page.goto('http://127.0.0.1:4173/admin/etapas')

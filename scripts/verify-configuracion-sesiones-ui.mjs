@@ -31,6 +31,8 @@ try{
  const respuesta=panel.waitForResponse(r=>r.url().endsWith('/rpc/admin_sesion_crear'))
  await panel.getByRole('button',{name:'Crear y Generar QR'}).click();const data=await(await respuesta).json(),id=data.sesion_id
  await expect(panel.getByRole('heading',{name:'Sala de control'})).toBeVisible()
+ await expect(panel.getByRole('dialog',{name:'Acceso a la sesión'})).toBeVisible()
+ await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
  ok('crea la sesión normal y su QR con seis preguntas y tres minutos')
  for(const [p,nombre] of [[pc,nombrePC],[celular,nombreCelular]]){await p.goto(base+'/examen/'+id,{waitUntil:'networkidle'});await p.getByRole('button',{name:nombre,exact:true}).click();await p.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(p.getByRole('heading',{name:'Esperando autorización'})).toBeVisible();await aprobar(nombre);await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Registro confirmado',{exact:true})).toBeVisible();await expect(p.getByText('6 preguntas',{exact:true})).toBeVisible()}
  ok('PC y celular simulado recorren el registro y la autorización normales con seis preguntas')

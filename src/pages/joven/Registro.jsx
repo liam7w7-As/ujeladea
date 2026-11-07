@@ -6,6 +6,7 @@ import { rutaIntento } from '../../lib/estado-examen'
 import EstadoParticipante from '../../components/EstadoParticipante'
 import { buscarNombre, horaExamen } from '../../lib/experiencia-examen'
 import InstruccionesExamen from '../../components/InstruccionesExamen'
+import { estadoAccesoSesion } from '../../lib/estado-acceso-sesion'
 
 export default function Registro() {
   const { sesionId } = useParams()
@@ -18,6 +19,16 @@ export default function Registro() {
   const [codigo, setCodigo] = useState(() => { const v = new URLSearchParams(location.hash.slice(1)).get('recuperacion') || ''; if(v) history.replaceState(null,'',location.pathname); return v })
   const [revision, setRevision] = useState(0)
   const recargar = useCallback(() => setRevision(v => v + 1), [])
+  const acceso = sala ? estadoAccesoSesion(sala) : null
+  const esperar = acceso?.esperar
+  useEffect(() => {
+    if (!esperar) return
+    const comprobar = () => { if (document.visibilityState === 'visible' && navigator.onLine) recargar() }
+    const timer = setInterval(comprobar, 18000 + Math.random() * 4000)
+    window.addEventListener('online', comprobar)
+    document.addEventListener('visibilitychange', comprobar)
+    return () => { clearInterval(timer); window.removeEventListener('online', comprobar); document.removeEventListener('visibilitychange', comprobar) }
+  }, [esperar, recargar])
   useEffect(() => {
     let vigente = true
     apiExamen.sala(sesionId).then(async datos => {
@@ -44,7 +55,8 @@ export default function Registro() {
   const visibles = sala.participantes.filter(p => buscarNombre(p.nombre).includes(buscarNombre(busqueda)))
   return <main className="page-wrapper"><div className="page-content">
     <header className="brand-header"><img src="/logo.png" alt="UJELADEA" className="joven-logo" /><h1 className="brand-title">Olimpiadas Bíblicas</h1><p className="joven-libro">{sala.etapa.nombre} · {sala.etapa.libro} · {sala.etapa.anio}</p><p className="brand-subtitle">{sala.sesion.sociedad}</p></header>
-    <section className="card joven-registro"><h2>{sala.disponible ? 'Selecciona tu nombre' : 'La sesión no está abierta'}</h2><p className="joven-ayuda">{sala.disponible ? 'Comprueba tu nombre antes de confirmar. Tu progreso quedará vinculado a este dispositivo.' : 'El encargado te indicará cuándo puedes entrar.'}</p>
+    <section className="card joven-registro"><h2>{acceso.titulo}</h2><p className="joven-ayuda">{acceso.mensaje}</p>
+      {!sala.disponible && <button className="btn btn-secondary" disabled={procesando} onClick={recargar}>Volver a comprobar el acceso</button>}
       {sala.disponible && sala.sesion.estado === 'activo' && <div className="etapa-aviso">La evaluación ya comenzó. Finaliza a las {horaExamen(sala.sesion.vence_at)}. Dispones del tiempo que quede hasta ese cierre, con la misma valoración y sin descuento por tardanza.</div>}
       {error && <p role="alert" className="alert alert-error">{error}</p>}
       {sala.disponible && sala.participantes.length > 0 && <><label className="form-label" htmlFor="buscar-nombre">Buscar mi nombre</label><input id="buscar-nombre" className="form-input joven-busqueda" type="search" value={busqueda} disabled={procesando} onChange={e => setBusqueda(e.target.value)} placeholder="Escribe tu nombre o apellido" autoComplete="off" /><div className="joven-nombres" role="group" aria-label="Participantes disponibles">{visibles.map(p => <button key={p.id} disabled={procesando} className={seleccion === p.id ? 'seleccionado' : ''} aria-pressed={seleccion === p.id} onClick={() => setSeleccion(p.id)}>{p.nombre}{seleccion === p.id && <UserCheck size={20} aria-hidden="true" />}</button>)}</div>{!visibles.length && <p role="status">No hay coincidencias. Prueba con otro apellido o borra la búsqueda.</p>}</>}
