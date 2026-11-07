@@ -28,11 +28,10 @@ test('Efesios V3: distribución, autorización, rúbricas, tardanza y recuperaci
  await t.test('el banco admite revisiones y mantiene los puntajes de cada tipo',async()=>{
   await assert.rejects(asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.preguntas SET puntaje=99 WHERE etapa_id=$1",[e.id])),/puntaje/)
  })
- await t.test('un registro requiere validación del moderador y no expone preguntas',async()=>{
+ await t.test('el registro entra directamente a la espera sin exponer preguntas antes del inicio',async()=>{
   a=await rpc(users[0],'examen_registrar',[sesion,ids[0]])
-  assert.equal(a.acceso.pendiente,true);assert.equal(a.pregunta,null)
+  assert.equal(a.acceso.pendiente,false);assert.equal(a.pregunta,null)
   await assert.rejects(rpc(users[0],'admin_examen_autorizar',[a.intento.id,'Soy el moderador']),{code:'42501'})
-  await admin('admin_examen_autorizar',[a.intento.id,'Identidad comprobada en la sala'])
   await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.sesiones SET estado='activo' WHERE id=$1",[sesion]))
   a=await rpc(users[0],'examen_contacto',[a.intento.id])
   assert.equal(a.acceso.pendiente,false);assert.ok(a.pregunta)
@@ -46,9 +45,9 @@ test('Efesios V3: distribución, autorización, rúbricas, tardanza y recuperaci
  await t.test('añade un joven durante la evaluación y conserva el vencimiento global',async()=>{
   const nuevo=await admin('admin_examen_agregar',[sesion,'Joven tardío'])
   b=await rpc(users[1],'examen_registrar',[sesion,nuevo.participante_id])
-  assert.equal(b.pregunta,null)
+  assert.equal(b.acceso.pendiente,false);assert.ok(b.pregunta)
   assert.equal(Date.parse(b.sesion.vence_at),Date.parse(a.intento.vence_at))
-  assert.equal((await db.query('SELECT count(*)::int n FROM public.intento_preguntas WHERE intento_id=$1',[b.intento.id])).rows[0].n,0)
+  assert.equal((await db.query('SELECT count(*)::int n FROM public.intento_preguntas WHERE intento_id=$1',[b.intento.id])).rows[0].n,45)
   await admin('admin_examen_autorizar',[b.intento.id,'Identidad del nuevo participante comprobada'])
   b=await rpc(users[1],'examen_contacto',[b.intento.id])
   assert.equal(b.intento.vence_at,a.intento.vence_at)

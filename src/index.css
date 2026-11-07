@@ -730,6 +730,10 @@ a:hover {
 .participante-control h2 {font-size:1rem;margin-bottom:8px}
 .participante-control p,.participante-control small {font-size:.8rem;color:var(--color-text-secondary)}
 .participante-control .etapa-actions {max-width:450px}
+.alertas-participante {margin-top:10px;padding:10px 12px;border-left:3px solid #d6a746;background:rgba(214,167,70,.08);font-size:.8rem;overflow-wrap:anywhere}
+.alertas-participante.requieren-revision {border-color:#ef7181;background:rgba(239,113,129,.08)}
+.alertas-participante ul {margin:6px 0 0;padding-left:18px}
+.alertas-participante li {margin:4px 0}
 .qr-panel {display:flex;align-items:center;flex-direction:column;gap:18px;margin:16px 0;overflow-wrap:anywhere}
 .qr-panel>svg {display:block;flex-shrink:0;width:240px;max-width:100%;height:auto;aspect-ratio:1;background:#fff;color-scheme:light;forced-color-adjust:none}
 .qr-panel .qr-enlace {max-width:100%;word-break:break-word}

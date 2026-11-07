@@ -19,7 +19,6 @@ for(const c of contexts)await c.route('**/*',r=>new URL(r.request().url()).hostn
 const [panel,pc,celular]=await Promise.all(contexts.map(c=>c.newPage())),errores=[],checks=[]
 for(const p of [panel,pc,celular])p.on('pageerror',e=>errores.push(e.message))
 const ok=s=>{checks.push(s);console.log('OK: '+s)}
-async function aprobar(nombre){await panel.reload({waitUntil:'networkidle'});const fila=panel.locator('.participante-control').filter({has:panel.getByRole('heading',{name:nombre,exact:true})});await fila.getByRole('button',{name:'Autorizar acceso',exact:true}).click();await panel.getByLabel('Motivo de la autorización').fill('Persona comprobada para el ensayo local');await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click();await expect(panel.getByRole('dialog')).toHaveCount(0)}
 try{
  await panel.goto(base+'/demo/entrar?vista=panel',{waitUntil:'networkidle'});await panel.goto(base+'/admin/sesion/nueva',{waitUntil:'networkidle'})
  await panel.getByPlaceholder('Buscar sociedad o iglesia...').fill(nombreSoc);await panel.getByText(nombreSoc,{exact:true}).click()
@@ -36,8 +35,8 @@ try{
  await expect(panel.getByRole('dialog',{name:'Acceso a la sesión'})).toBeVisible()
  await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
  ok('crea la sesión normal y su QR con diez preguntas y dos minutos')
- for(const [p,nombre] of [[pc,nombrePC],[celular,nombreCelular]]){await p.goto(base+'/examen/'+id,{waitUntil:'networkidle'});await p.getByRole('button',{name:nombre,exact:true}).click();await p.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(p.getByRole('heading',{name:'Esperando autorización'})).toBeVisible();await aprobar(nombre);await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Registro confirmado',{exact:true})).toBeVisible();await expect(p.getByText('10 preguntas',{exact:true})).toBeVisible()}
- ok('PC y celular simulado recorren el registro y la autorización normales con diez preguntas')
+ for(const [p,nombre] of [[pc,nombrePC],[celular,nombreCelular]]){await p.goto(base+'/examen/'+id,{waitUntil:'networkidle'});await p.getByRole('button',{name:nombre,exact:true}).click();await p.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(p.getByRole('heading',{name:'Esperando al encargado'})).toBeVisible();await expect(p.locator('.joven-espera .spinner')).toBeVisible();await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Registro confirmado',{exact:true})).toBeVisible();await expect(p.getByText('10 preguntas',{exact:true})).toBeVisible()}
+ ok('PC y celular entran directamente con espera animada y diez preguntas')
  await panel.getByRole('button',{name:'Iniciar examen',exact:true}).click();await panel.getByRole('dialog').getByRole('button',{name:'Aceptar',exact:true}).click()
  for(const p of [pc,celular]){await p.evaluate(()=>globalThis.window.dispatchEvent(new Event('online')));await expect(p.getByText('Pregunta 1 de 10',{exact:true})).toBeVisible()}
  await celular.screenshot({path:dir+'/celular.png',fullPage:true});if(await celular.evaluate(()=>globalThis.document.documentElement.scrollWidth>globalThis.innerWidth))throw Error('Desbordamiento en celular')
@@ -63,7 +62,7 @@ try{
  await panel.goto(base+'/admin/premiacion',{waitUntil:'networkidle'});if((await panel.locator('body').innerText()).includes(nombrePC))throw Error('La sesión eliminada sigue en premiación')
  ok('los resultados eliminados dejan de aparecer en ranking y premiación')
  const nuevo=(await api('/rest/v1/rpc/admin_sesion_crear',{p_etapa:meta.etapa,p_sociedad:soc.id,p_participantes:[{nombre:nombrePC}],p_minutos:1,p_cantidad:3})).sesion_id
- await pc.goto(base+'/examen/'+nuevo,{waitUntil:'networkidle'});await pc.getByRole('button',{name:nombrePC,exact:true}).click();await pc.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(pc.getByRole('heading',{name:'Esperando autorización'})).toBeVisible()
+ await pc.goto(base+'/examen/'+nuevo,{waitUntil:'networkidle'});await pc.getByRole('button',{name:nombrePC,exact:true}).click();await pc.getByRole('button',{name:'Soy yo, confirmar',exact:true}).click();await expect(pc.getByRole('heading',{name:'Esperando al encargado'})).toBeVisible()
  await api('/rest/v1/rpc/admin_sesion_eliminar',{p_sesion:nuevo,p_etapa:meta.etapa,p_confirmacion:'ELIMINAR'})
  ok('reutiliza el mismo nombre, sociedad y dispositivo después de eliminar')
  if(errores.length)throw Error(errores.join(' | '))

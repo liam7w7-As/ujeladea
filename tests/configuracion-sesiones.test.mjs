@@ -35,11 +35,11 @@ test('acceso por sesión sin activar la etapa; autorización, reloj y cierre',as
   assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'borrador')
   assert.deepEqual((await db.query('SELECT to_jsonb(s) s FROM public.sesiones s WHERE id=$1',[id])).rows[0].s,antes)
   const p=(await db.query('SELECT id FROM public.participantes WHERE sesion_id=$1 LIMIT 1',[id])).rows[0].id
-  const registro=await rpc('examen_registrar',[id,p],users[0]);assert.equal(registro.pregunta,null);assert.equal(registro.acceso.pendiente,true)
+  const registro=await rpc('examen_registrar',[id,p],users[0]);assert.equal(registro.pregunta,null);assert.equal(registro.acceso.pendiente,false)
   await assert.rejects(rpc('admin_examen_sala',[id,e.id],users[0]),{code:'42501'})
  })
- await t.test('el moderador autoriza sin ninguna activación global',async()=>{
-  const intento=(await db.query('SELECT id FROM public.intentos WHERE sesion_id=$1',[id])).rows[0].id;await rpc('admin_examen_autorizar',[intento,'Identidad verificada para esta sesión'])
+ await t.test('el primer ingreso llega a la espera sin aprobación global ni individual',async()=>{
+  const intento=(await db.query('SELECT id FROM public.intentos WHERE sesion_id=$1',[id])).rows[0].id;const estado=await rpc('examen_contacto',[intento],users[0]);assert.equal(estado.acceso.pendiente,false);assert.equal(estado.intento.estado,'registrado')
   const sala=await rpc('examen_sala',[id],users[1])
   assert.equal(sala.disponible,true);assert.equal(sala.motivo_no_disponible,null);assert.equal(sala.participantes.length,1);assert.equal(sala.sesion.iniciado_at,null)
   assert.equal((await rpc('admin_examen_sala',[id,e.id])).etapa_estado,'borrador');assert.equal(estadoAccesoSesion(sala).titulo,'Selecciona tu nombre')

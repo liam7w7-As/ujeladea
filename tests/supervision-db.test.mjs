@@ -26,6 +26,7 @@ test('supervisión: permisos, incidentes agrupados y revisión sin cambiar pregu
  await t.test('la pantalla reducida es un indicio y no bloquea aunque sea prolongada',async()=>{
   const id=randomUUID();await signal(id,'inicio',['vista_reducida'],2000);await signal(id,'pulso',['vista_reducida'],50000);const fin=await signal(id,'fin',[],55000,0,['vista_reducida']);assert.equal(fin.acceso.pendiente,false)
   assert.equal((await db.query('SELECT count(*)::int n FROM app_private.episodios_supervision WHERE episodio=$1',[id])).rows[0].n,1)
+  assert.equal((await db.query("SELECT count(*)::int n FROM public.eventos_sesion WHERE solicitud_id=$1 AND tipo='supervision_vista'",[id])).rows[0].n,1)
  })
  await t.test('el servidor impide confirmar durante una ausencia sostenida, incluso sin pulso final',async()=>{
   const id=randomUUID();await signal(id,'inicio',['sin_foco'],2000,2000)

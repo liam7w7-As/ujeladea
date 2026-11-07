@@ -20,7 +20,7 @@ export class SalaEnVivo {
     this.canal=this.client.channel('sala_control_'+this.sesion+'_'+Math.random().toString(36).slice(2))
       .on('postgres_changes',{event:'*',schema:'public',table:'participantes',filter:'sesion_id=eq.'+this.sesion},()=>this.programar())
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sesiones',filter:'id=eq.'+this.sesion},()=>this.programar())
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'eventos_sesion',filter:'sesion_id=eq.'+this.sesion},()=>this.programar())
+      .on('postgres_changes',{event:'*',schema:'public',table:'eventos_sesion',filter:'sesion_id=eq.'+this.sesion},()=>this.programar())
       .subscribe(estado=>{
         if(this.detenido)return
         this.conexion(!this.enLinea()?'sin_red':estado==='SUBSCRIBED'?'en_vivo':'consulta')
