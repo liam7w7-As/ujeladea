@@ -38,6 +38,7 @@ rpcs.add('examen_ayuda')
 rpcs.add('admin_examen_atender_ayuda')
 for (const nombre of ['admin_revision_resumen','admin_revision_siguiente','admin_revision_borrador','admin_revision_guardar']) rpcs.add(nombre)
 for (const nombre of ['admin_sesion_crear','admin_sesion_eliminar']) rpcs.add(nombre)
+for (const nombre of ['admin_moderacion_enlace','moderacion_entrar','moderacion_estado','moderacion_incidencias']) rpcs.add(nombre)
 async function rpc(nombre,args,claims,headers={}) {
   if(!rpcs.has(nombre))throw new Error('RPC no disponible en la demo')
   const keys=Object.keys(args)

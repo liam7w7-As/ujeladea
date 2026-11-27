@@ -17,6 +17,13 @@ export default function AccesoPendiente({ datos, aplicar, errorConexion, recarga
     catch (e) { setError(e.message) }
     finally { setOcupado(false) }
   }
+  async function comprobarAcceso() {
+    setOcupado(true)
+    setError('')
+    try { aplicar(await apiExamen.contacto(datos.intento.id, 'pulso', true)) }
+    catch (e) { setError(e.message) }
+    finally { setOcupado(false) }
+  }
   return <main className="page-wrapper"><section className="page-content card acceso-pendiente">
     <ShieldCheck size={36} aria-hidden="true" /><p className="eyebrow">{datos.etapa.libro} · {datos.sesion.sociedad}</p>
     <h1>{inicial ? 'Esperando autorización' : 'Volvamos a tu examen'}</h1>
@@ -28,6 +35,7 @@ export default function AccesoPendiente({ datos, aplicar, errorConexion, recarga
     {enviado && <div className="registro-confirmado" role="status"><CheckCircle2 size={18} aria-hidden="true" /> Solicitud recibida. Esperando al moderador.</div>}
     {!inicial && <><label className="form-label" htmlFor="motivo-acceso">Qué ocurrió (opcional)</label><input id="motivo-acceso" className="form-input" value={motivo} maxLength={500} onChange={e => setMotivo(e.target.value)} placeholder="Cierre accidental, cambio de dispositivo…" /></>}
     {(!inicial || !enviado) && <button className="btn btn-primary" disabled={ocupado} onClick={() => pedir()}>{ocupado ? 'Enviando…' : enviado ? 'Actualizar solicitud' : 'Solicitar autorización'}</button>}
+    {enviado && <button className="btn btn-secondary" disabled={ocupado} onClick={comprobarAcceso}>Comprobar acceso</button>}
     <p className="joven-ayuda">No necesitas recargar. Continuarás automáticamente cuando el moderador autorice este acceso. Si estás en la sala, levanta la mano para avisarle.</p>
     <details className="joven-recuperacion"><summary>Tengo un código o QR personal</summary><label className="form-label" htmlFor="codigo-acceso">Código de un solo uso</label><input id="codigo-acceso" className="form-input" autoComplete="off" value={codigo} maxLength={48} onChange={e => setCodigo(e.target.value)} /><button className="btn btn-secondary" disabled={ocupado || !codigo.trim()} onClick={() => pedir(true)}>Usar autorización</button></details>
   </section></main>

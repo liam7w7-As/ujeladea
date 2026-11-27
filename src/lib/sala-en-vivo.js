@@ -1,7 +1,7 @@
 // Realtime acelera la actualización; cada lectura completa recupera también eventos perdidos.
 export class SalaEnVivo {
-  constructor({ client, sesion, etapa, onDatos, onError, onConexion, ventana=globalThis.window, documento=globalThis.document, cada=15000, agrupar=1000 }) {
-    Object.assign(this,{client,sesion,etapa,onDatos,onError,onConexion,ventana,documento,cada,agrupar})
+  constructor({ client, sesion, etapa, onDatos, onError, onConexion, ventana=globalThis.window, documento=globalThis.document, cada=15000, agrupar=1000, realtime=true }) {
+    Object.assign(this,{client,sesion,etapa,onDatos,onError,onConexion,ventana,documento,cada,agrupar,realtime})
     this.detenido=false
     this.pendiente=false
     this.operacion=null
@@ -17,6 +17,7 @@ export class SalaEnVivo {
     this.ventana?.addEventListener('offline',this.alSalir)
     this.documento?.addEventListener('visibilitychange',this.alVolver)
     this.intervalo=setInterval(()=>this.alVolver(),this.cada)
+    if(!this.realtime)return this.recargar()
     this.canal=this.client.channel('sala_control_'+this.sesion+'_'+Math.random().toString(36).slice(2))
       .on('postgres_changes',{event:'*',schema:'public',table:'participantes',filter:'sesion_id=eq.'+this.sesion},()=>this.programar())
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sesiones',filter:'id=eq.'+this.sesion},()=>this.programar())

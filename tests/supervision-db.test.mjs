@@ -34,8 +34,11 @@ test('supervisión: permisos, incidentes agrupados y revisión sin cambiar pregu
   const texto=a.pregunta.tipo==='multiple'?a.pregunta.opciones[0]:'Texto de prueba'
   await assert.rejects(rpc('examen_responder',[a.intento.id,a.pregunta.id,texto,randomUUID()]),{code:'P0003'})
   a=await rpc('examen_contacto',[a.intento.id]);assert.equal(a.acceso.pendiente,true);assert.equal(a.pregunta,null)
-  await signal(id,'fin',[],18000,18000,['sin_foco']);const panel=await admin('admin_examen_sala',[sesion,e]);assert.equal(panel.supervision.find(v=>v.episodio===id).requiere_revision,true)
   await admin('admin_examen_autorizar',[a.intento.id,'Interrupción revisada y participante presente']);a=await rpc('examen_contacto',[a.intento.id]);assert.equal(a.pregunta.id,original.pregunta.id);assert.equal(a.pregunta.posicion,original.pregunta.posicion);assert.equal(a.intento.vence_at,original.intento.vence_at)
+  const panel=await admin('admin_examen_sala',[sesion,e]);assert.equal(panel.supervision.find(v=>v.episodio===id).requiere_revision,true)
+  assert.ok(panel.supervision.find(v=>v.episodio===id).hasta)
+  await signal(id,'fin',[],18000,18000,['sin_foco'])
+  assert.equal((await rpc('examen_contacto',[a.intento.id,'solicitar',true,'Ya volví al examen'])).acceso.pendiente,false)
   await signal(id,'inicio',['sin_foco'],20000,20000);assert.equal((await rpc('examen_estado',[a.intento.id])).acceso.pendiente,false)
  })
  await t.test('un cierre recuperado tras estar sin red solicita revisión y conserva las respuestas',async()=>{
