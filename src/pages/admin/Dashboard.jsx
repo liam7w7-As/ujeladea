@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Plus, Trophy, Users, Trash2 } from 'lucide-react'
 import { useEtapa } from '../../context/etapa-context'
-import { cargarResumenEtapa, sesionConSociedad } from '../../lib/etapas'
+import { cargarResumenEtapa, datosVigentes, sesionConSociedad } from '../../lib/etapas'
 import { supabase } from '../../lib/supabase'
 import NavAdmin from '../../components/NavAdmin'
 import EtapaAviso from '../../components/EtapaAviso'
@@ -27,7 +27,7 @@ export default function Dashboard() {
   useEffect(() => {
     let vigente = true
     cargarResumenEtapa(supabase, etapa, archivo, "sesiones")
-      .then(datos => { if (vigente) setEstado({ datos, error: '' }) })
+      .then(datos => { if (vigente) setEstado({ datos: datosVigentes(datos), error: '' }) })
       .catch(err => { if (vigente) setEstado({ datos: null, error: err.message }) })
     return () => { vigente = false }
   }, [etapa, archivo, revision])

@@ -61,7 +61,7 @@ export function prepararInformeEtapa({ etapa, datos, emitidoAt = new Date(), eje
       pendientes: datos.respuestas.filter(r => r.participante_id === j.id && (r.puntaje_obtenido === null || r.calificado_por === 'pendiente_ia')).length,
     })),
     metodologia: [
-      'Una fila por sociedad, consolidando todas sus sesiones finalizadas. Solo se incluyen intentos con preguntas asignadas; los abandonos conservan su resultado.',
+      'Una fila por sociedad, consolidando todas sus sesiones finalizadas. Se incluyen los intentos con preguntas asignadas que estén vigentes en resultados, incluidos los abandonos.',
       'Nota individual: 100 por puntos obtenidos dividido entre el máximo de todas las preguntas asignadas, también las no respondidas. Los snapshots conservan los valores y rúbricas originales.',
       'Nota de sociedad: promedio de las notas individuales, con el mismo peso por joven. Se conserva precisión para ordenar y se muestran dos decimales.',
       'No se usa censo ni penalización automática por alertas. Las señales del navegador requieren revisión del moderador.',

@@ -35,6 +35,49 @@ async function fixture() {
  return {db,e,sesiones,respuestas,users,jurado2,instancias,rpc,resumen,grupo,next,draft,save,service}
 }
 
+test('un administrador puede excluir y restaurar un intento de Efesios con auditoría y sin editar sus notas',async()=>{
+ const f=await fixture(), {db,e,rpc,sesiones,respuestas,users,next,draft,save,service}=f
+ try {
+  const participante=(await db.query('SELECT participante_id FROM public.respuestas WHERE id=$1',[respuestas[0]])).rows[0].participante_id
+  const antes=(await db.query('SELECT * FROM public.respuestas WHERE participante_id=$1 ORDER BY id',[participante])).rows
+  const args=[sesiones[0],participante,true,'Segundo registro validado']
+  const excluir=(...parametros)=>rpc('admin_participante_exclusion',...parametros)
+  const permiso={code:'42501'}
+  await assert.rejects(excluir(args),permiso)
+  await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.sesiones SET estado='finalizado' WHERE id=ANY($1::uuid[])",[sesiones]))
+  await assert.rejects(excluir(args,{sub:users[0],is_anonymous:true}),permiso)
+  await assert.rejects(excluir(args,{},'anon'),permiso)
+  await assert.rejects(excluir([sesiones[1],...args.slice(1)]),permiso)
+  await assert.rejects(excluir([...args.slice(0,3),'   ']),/motivo/)
+  await asRole(db,'authenticated',adminClaims,()=>assert.rejects(db.query("UPDATE public.participantes SET excluido_resultados_at=now(),motivo_exclusion='Cambio directo' WHERE id=$1",[participante]),permiso))
+
+  const estado=await excluir(args)
+  assert.ok(estado.excluido_resultados_at)
+  assert.deepEqual(await excluir(args),estado)
+  assert.equal((await next()).id,respuestas[2])
+  assert.deepEqual((await rpc('admin_revision_resumen',[sesiones[0],e.id])).preguntas.map(g=>g.total),[1,1])
+  await assert.rejects(draft(respuestas[0],[1,1,1]),permiso)
+  await assert.rejects(save(respuestas[0],[1,1,1]),permiso)
+  await assert.rejects(rpc('admin_examen_calificar_rubrica',[respuestas[0],'[1,1,1]','',0]),permiso)
+  await assert.rejects(service('servicio_ia_reservar',[respuestas[0],0,'v1',0.1]),{code:'40001'})
+  assert.deepEqual((await db.query('SELECT * FROM public.respuestas WHERE participante_id=$1 ORDER BY id',[participante])).rows,antes)
+
+  assert.deepEqual(await excluir([sesiones[0],participante,false,'Verificación corregida']),{excluido_resultados_at:null,motivo_exclusion:null})
+  assert.deepEqual((await rpc('admin_revision_resumen',[sesiones[0],e.id])).preguntas.map(g=>g.total),[2,2])
+  const auditoria=await db.query("SELECT actor,detalle->>'excluido' accion FROM app_private.auditoria_premiacion WHERE tipo='exclusion_participante' ORDER BY created_at")
+  assert.deepEqual(auditoria.rows,[{actor:adminClaims.sub,accion:'true'},{actor:adminClaims.sub,accion:'false'}])
+
+  // Los pendientes de un intento excluido quedan archivados y permiten cerrar la etapa.
+  await excluir(args)
+  for (const respuesta of respuestas.slice(2)) await rpc('admin_examen_calificar_rubrica',[respuesta,'[1,1,1]','',0])
+  await asRole(db,'authenticated',adminClaims,()=>db.query("UPDATE public.etapas SET estado='cerrada' WHERE id=$1",[e.id]))
+  await assert.rejects(excluir([sesiones[0],participante,false,'Etapa ya cerrada']),permiso)
+  const archivo=(await db.query("SELECT contenido->'datos' datos FROM public.archivos_etapa WHERE etapa_id=$1",[e.id])).rows[0].datos
+  assert.ok(archivo.participantes.find(p=>p.id===participante).excluido_resultados_at)
+  assert.equal(archivo.respuestas.filter(r=>r.participante_id===participante && r.puntaje_obtenido===null).length,2)
+ } finally { await db.close() }
+})
+
 test('mesa del jurado: aislamiento, reservas, borradores, consulta y confirmación',async t=>{
  const f=await fixture(),{db,e,rpc,sesiones,next,draft,save,instancias,jurado2}=f
  try {

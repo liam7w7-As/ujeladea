@@ -2,6 +2,37 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { prepararInformeEtapa } from '../src/lib/informe-etapa.js'
 import { ejemploEfesios } from '../scripts/lib/ejemplo-efesios.mjs'
+import { datosVigentes, puntajeSesion, rankingEtapa } from '../src/lib/etapas.js'
+import { calcularPremiacion } from '../src/lib/premiacion.js'
+
+test('excluir un intento lo retira del promedio, ranking, premiación e informe sin borrar sus datos',()=>{
+  const f=ejemploEfesios()
+  const {datos,etapa}=f
+  const excluido=datos.participantes[0]
+  const sociedad=datos.sociedades[0]
+  const sesion=datos.sesiones[0]
+  const resumen={hebreos:{sociedades:[{sociedadId:sociedad.id,sociedad:sociedad.nombre,nota:90}],participantes:[]},vinculos:[],validacion_pdf:true}
+  const inicial=puntajeSesion(datos,sesion.id)
+  assert.equal(inicial.rindieron,2)
+  excluido.excluido_resultados_at='2026-11-27T16:00:00Z'
+  const conservado=structuredClone(datos)
+  const vigente=puntajeSesion(datosVigentes(datos),sesion.id)
+  const ranking=rankingEtapa(datos)
+  const informe=prepararInformeEtapa(f)
+  const premios=calcularPremiacion(resumen,datos,etapa)
+  assert.equal(vigente.rindieron,1)
+  assert.equal(vigente.porcentaje,100*datos.participantes[1].puntaje_total/450)
+  assert.equal(vigente.totalAlertas,0)
+  assert.equal(ranking.todosJovenes.some(p=>p.id===excluido.id),false)
+  assert.equal(ranking.rankingSociedades.find(s=>s.sociedadId===sociedad.id).porcentaje,vigente.porcentaje)
+  assert.equal(informe.resumen.registrados,3)
+  assert.equal(informe.resumen.pendientes,0)
+  assert.equal(premios.individuales.some(p=>p.id===excluido.id),false)
+  assert.equal(premios.sociedades.find(s=>s.id===sociedad.id).total,(90+vigente.porcentaje)/2)
+  assert.deepEqual(datos,conservado)
+  excluido.excluido_resultados_at=null
+  assert.deepEqual(puntajeSesion(datosVigentes(datos),sesion.id),inicial)
+})
 
 test('el informe V2 usa todas las asignaciones, separa convocados e identifica notas pendientes',()=>{
   const f=ejemploEfesios()

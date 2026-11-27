@@ -171,6 +171,7 @@ export function participantesSesion(datos, id, indice = indiceDatos(datos)) {
     return {
       ...p,
       intento,
+      respondidas: respuestas.length,
       puntaje_max: Array.isArray(datos.intentos) ? asignadas.reduce((s,q) => s + q.puntaje, 0) : respuestas.reduce((s, r) => s + (r.preguntas?.puntaje || 0), 0),
       pendientes: respuestas.filter(r => r.calificado_por === 'pendiente_ia' || r.puntaje_obtenido === null).length,
       alertas: (indice.eventos.get(p.id) || []).length,
@@ -200,13 +201,16 @@ export function puntajeSesion(datos, id, indice = indiceDatos(datos)) {
 }
 
 export function datosVigentes(datos) {
-  if (!datos.sesiones.some(s => s.eliminada_at)) return datos
+  const excluidos = new Set(datos.participantes.filter(p => p.excluido_resultados_at).map(p => p.id))
+  if (!excluidos.size && !datos.sesiones.some(s => s.eliminada_at)) return datos
   const sesiones = datos.sesiones.filter(s => !s.eliminada_at), ids = new Set(sesiones.map(s => s.id))
-  const participantes = datos.participantes.filter(p => ids.has(p.sesion_id)), personas = new Set(participantes.map(p => p.id))
-  const intentos = datos.intentos?.filter(i => ids.has(i.sesion_id)), evaluaciones = new Set(intentos?.map(i => i.id))
+  const participantes = datos.participantes.filter(p => ids.has(p.sesion_id) && !excluidos.has(p.id))
+  const personas = new Set(participantes.map(p => p.id))
+  const intentos = datos.intentos?.filter(i => ids.has(i.sesion_id) && !excluidos.has(i.participante_id))
+  const evaluaciones = new Set(intentos?.map(i => i.id))
   return { ...datos, sesiones, participantes,
     respuestas: datos.respuestas.filter(r => personas.has(r.participante_id)),
-    eventos_sesion: datos.eventos_sesion.filter(e => ids.has(e.sesion_id)),
+    eventos_sesion: datos.eventos_sesion.filter(e => ids.has(e.sesion_id) && !excluidos.has(e.participante_id)),
     ...(intentos ? { intentos, intento_preguntas: datos.intento_preguntas.filter(q => evaluaciones.has(q.intento_id)) } : {}),
   }
 }
